@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/utils/supabase/server";
 
+import UserDetails from "./components/UserDetails";
+
 export default async function PrivatePage() {
     const supabase = await createClient()
 
@@ -15,10 +17,11 @@ export default async function PrivatePage() {
 
     return (
         <>
-            <p className="p-10 text-2xl">Hello {data.user.email}</p>
-            <div>
-                <p className="pl-10 text-xl">I am </p>
+            <div className="p-10 flex">
+                <p className="flex-auto text-2xl">Hello {data.user.email}</p>
+                <UserDetails/>
             </div>
+            
         </>
     )
 }
