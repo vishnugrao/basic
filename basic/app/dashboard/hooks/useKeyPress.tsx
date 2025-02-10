@@ -1,15 +1,15 @@
 import { useState, useEffect } from "react";
 
-export default function useKeyPress(targetKey) {
+export default function useKeyPress(targetKey: string) {
     const [keyPressed, setKeyPressed] = useState(false);
 
-    function downHandler({ key }) {
+    function downHandler({ key }: { key: string }) {
         if (key === targetKey) {
             setKeyPressed(true);
         }
     }
 
-    const upHandler = ({ key }) => {
+    const upHandler = ({ key }: { key: string }) => {
         if (key === targetKey) {
             setKeyPressed(false);
         }
@@ -22,7 +22,7 @@ export default function useKeyPress(targetKey) {
             window.removeEventListener('keydown', downHandler);
             window.removeEventListener('keyup', upHandler);
         }
-    }, []);
+    });
 
     return keyPressed;
 } 
