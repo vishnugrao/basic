@@ -17,10 +17,10 @@ export default async function PrivatePage() {
 
     return (
         <>
-            <div className="p-10 flex">
+            <section className="p-10 flex">
                 <p className="flex-auto text-2xl">Hello {data.user.email}</p>
                 <UserDetails/>
-            </div>
+            </section>
             
         </>
     )

@@ -3,9 +3,9 @@
 export default function UserDetails() {
     return(
         <div className="flex flex-auto">
-            <p className="flex-auto text-2xl">Gender: Male</p>
-            <p className="flex-auto text-2xl">Height: 174cm</p>
-            <p className="flex-auto text-2xl">Weight: 83kg</p>
+            <div className="flex flex-auto text-2xl"><p>Gender:&nbsp;</p><p>Male</p></div>
+            <div className="flex flex-auto text-2xl"><p>Height:&nbsp;</p><p>174</p><p>cm</p></div>
+            <div className="flex flex-auto text-2xl"><p>Weight:&nbsp;</p><p>83</p><p>kg</p></div>
         </div>
     )
 }
