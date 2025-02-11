@@ -14,7 +14,7 @@ export default async function DashboardPage() {
         redirect('/login')
     }
 
-    const userDetails = await getUserDetails(data.user.email)
+    const userDetails = await getUserDetails(data.user.email as string)
 
     return (
         <>
