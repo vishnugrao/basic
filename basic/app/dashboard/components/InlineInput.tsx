@@ -5,10 +5,12 @@ import useOnClickOutside from "../hooks/useOnClickOutside";
 export default function InlineInput(props: { text: string; onSetText: (text: string) => void }) {
     const [isInputActive, setIsInputActive] = useState(false);
     const [inputValue, setInputValue] = useState(props.text);
+    const [inputWidth, setInputWidth] = useState('auto');
 
-    const wrapperRef = useRef(null);
-    const textRef = useRef(null);
-    const inputRef = useRef(null);
+    const wrapperRef = useRef<HTMLSpanElement>(null);
+    const textRef = useRef<HTMLSpanElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const measureRef = useRef<HTMLSpanElement>(null);
 
     const enter = useKeyPress('Enter');
     const esc = useKeyPress('Escape');
@@ -55,19 +57,42 @@ export default function InlineInput(props: { text: string; onSetText: (text: str
 
     const handleSpanClick = useCallback(() => setIsInputActive(true), [setIsInputActive]);
 
+    // Add function to update input width
+    const updateInputWidth = useCallback(() => {
+        if (measureRef.current) {
+            const width = measureRef.current.offsetWidth;
+            setInputWidth(`${width + 1}px`); // Add 8px padding for cursor space
+        }
+    }, []);
+
+    // Update width when input value changes
+    useEffect(() => {
+        updateInputWidth();
+    }, [inputValue, updateInputWidth]);
+
     return (
-        <span className="inline-text" ref={wrapperRef}>
-            <span ref={textRef} onClick={handleSpanClick} className={`inline-text_copy inline-text_copy--${!isInputActive ? "active" : "hidden"}`}>
+        <span className="inline-text relative" ref={wrapperRef}>
+            <span 
+                ref={textRef} 
+                onClick={handleSpanClick} 
+                className={`inline-text_copy inline-text_copy--${!isInputActive ? "active" : "hidden"}`}
+            >
                 {props.text}
             </span>
             <input
                 ref={inputRef}
-                style={{ minWidth: `${Math.ceil(inputValue.length)}ch` }}
+                style={{ width: inputWidth }}
                 value={inputValue}
                 onChange={handleInputChange}
                 className={`inline-text_input inline-text_input--${isInputActive ? "active" : "hidden"}`}
             />
+            <span 
+                ref={measureRef}
+                aria-hidden="true"
+                className="absolute -left-[9999px] -top-[9999px] whitespace-pre"
+            >
+                {inputValue}
+            </span>
         </span>
-
     );
 }
