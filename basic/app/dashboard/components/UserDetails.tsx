@@ -1,12 +1,15 @@
 'use client'
 
 import { useState } from "react";
+import ToggleInput from "./ToggleInput"
 import InlineInput from "./InlineInput"
+import { updateUserDetails } from "../actions";
 
-export default function UserDetails() {
-    const [storedGender, setStoredGender] = useState("Male");
-    const [storedHeight, setStoredHeight] = useState("173");
-    const [storedWeight, setStoredWeight] = useState("83");
+export default function UserDetails(props: { userDetails: any }) {
+    const { userDetails } = props;
+    const [storedGender, setStoredGender] = useState(userDetails.gender);
+    const [storedHeight, setStoredHeight] = useState(userDetails.height);
+    const [storedWeight, setStoredWeight] = useState(userDetails.weight);
 
     return (
         <div className="flex w-1/2 gap-4">
@@ -14,9 +17,13 @@ export default function UserDetails() {
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[80px] text-2xl">Gender:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
-                        <InlineInput 
-                            text={storedGender} 
-                            onSetText={(text: string) => setStoredGender(text)} 
+                        <ToggleInput 
+                            defaultText="Male" 
+                            activeText="Female" 
+                            onSetText={(text: string) => {
+                                setStoredGender(text);
+                                updateUserDetails({gender: text, height: storedHeight, weight: storedWeight, email: userDetails.email});
+                            }} 
                         />
                     </div>
                 </div>
@@ -28,9 +35,12 @@ export default function UserDetails() {
                     <div className="flex items-baseline text-2xl">
                         <InlineInput 
                             text={storedHeight} 
-                            onSetText={(text: string) => setStoredHeight(text)} 
+                            onSetText={(text: string) => {
+                                setStoredHeight(Number(text));
+                                updateUserDetails({gender: storedGender, height: Number(text), weight: storedWeight, email: userDetails.email});
+                            }} 
                         />
-                        <span className="text-2xl ml-1">cm</span>
+                        <span className="text-2xl ml-1"><ToggleInput defaultText="cm" activeText="ft" onSetText={() => {}}/></span>
                     </div>
                 </div>
             </div>
@@ -41,9 +51,12 @@ export default function UserDetails() {
                     <div className="flex items-baseline text-2xl">
                         <InlineInput 
                             text={storedWeight} 
-                            onSetText={(text: string) => setStoredWeight(text)} 
+                            onSetText={(text: string) => {
+                                setStoredWeight(Number(text));
+                                updateUserDetails({gender: storedGender, height: storedHeight, weight: Number(text), email: userDetails.email});
+                            }} 
                         />
-                        <span className="text-2xl ml-1">kg</span>
+                        <span className="text-2xl ml-1"><ToggleInput defaultText="kg" activeText="lbs" onSetText={() => {}}/></span>
                     </div>
                 </div>
             </div>
