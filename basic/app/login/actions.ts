@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
+import { v4 as uuidv4 } from 'uuid'
 
 export async function login(formData:FormData) {
     const supabase = await createClient()
@@ -35,6 +36,23 @@ export async function signup(formData: FormData) {
     const { error } = await supabase.auth.signUp(data)
 
     if (error) {
+        redirect('/error')
+    }
+
+    const { error: error2 } = await supabase.from('Users').insert({
+        id: uuidv4(),
+        name: data.email,
+        email: data.email,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        last_sign_in_at: new Date().toISOString(),
+        height: 0,
+        weight: 0,
+        gender: 'unknown',
+    })
+
+    if (error2) {
+        console.log(error2)
         redirect('/error')
     }
 
