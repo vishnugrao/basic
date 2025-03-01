@@ -11,3 +11,19 @@ export interface User {
     weight: number,
     gender: string
 }
+
+export interface Goal {
+    id: UUID,
+    user_id: UUID,
+    goal: string,
+    diet: string,
+    lacto_ovo: string
+}
+
+export interface Meal {
+    id: UUID,
+    user_id: UUID,
+    cuisine1: string,
+    cuisine2: string,
+    cuising3: string
+}

@@ -6,7 +6,7 @@ import InlineInput from "./InlineInput"
 import { updateUserDetails } from "../actions";
 import { User } from "@/types/types";
 
-export default function UserDetails(props: { userDetails : User}) {
+export default function UserDetails(props: {userDetails : User}) {
     const { userDetails } = props;
     const [storedGender, setStoredGender] = useState(userDetails.gender);
     const [storedHeight, setStoredHeight] = useState(userDetails.height);
@@ -20,7 +20,8 @@ export default function UserDetails(props: { userDetails : User}) {
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput 
                             defaultText="Male" 
-                            activeText="Female" 
+                            altValues={["Male", "Female"]}
+                            valIdx={1}
                             onSetText={(text: string) => {
                                 setStoredGender(text);
                                 updateUserDetails({ gender: String(text), height: Number(storedHeight), weight: Number(storedWeight), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
@@ -41,7 +42,7 @@ export default function UserDetails(props: { userDetails : User}) {
                                 updateUserDetails({ gender: String(storedGender), height: Number(text), weight: Number(storedWeight), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
-                        <span className="text-2xl ml-1"><ToggleInput defaultText="cm" activeText="ft" onSetText={() => {}}/></span>
+                        <span className="text-2xl ml-1"><ToggleInput defaultText="cm" altValues={["cm", "ft"]} valIdx={1} onSetText={() => {}}/></span>
                     </div>
                 </div>
             </div>
@@ -57,7 +58,7 @@ export default function UserDetails(props: { userDetails : User}) {
                                 updateUserDetails({ gender: String(storedGender), height: Number(storedHeight), weight: Number(text), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
-                        <span className="text-2xl ml-1"><ToggleInput defaultText="kg" activeText="lbs" onSetText={() => {}}/></span>
+                        <span className="text-2xl ml-1"><ToggleInput defaultText="kg" altValues={["kg", "lbs"]} valIdx={1} onSetText={() => {}}/></span>
                     </div>
                 </div>
             </div>
