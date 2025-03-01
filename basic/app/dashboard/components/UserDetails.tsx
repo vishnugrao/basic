@@ -4,8 +4,9 @@ import { useState } from "react";
 import ToggleInput from "./ToggleInput"
 import InlineInput from "./InlineInput"
 import { updateUserDetails } from "../actions";
+import { User } from "@/types/types";
 
-export default function UserDetails(props: { userDetails : any}) {
+export default function UserDetails(props: { userDetails : User}) {
     const { userDetails } = props;
     const [storedGender, setStoredGender] = useState(userDetails.gender);
     const [storedHeight, setStoredHeight] = useState(userDetails.height);
@@ -34,7 +35,7 @@ export default function UserDetails(props: { userDetails : any}) {
                     <span className="min-w-[80px] text-2xl">Height:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
                         <InlineInput 
-                            text={storedHeight} 
+                            text={String(storedHeight)} 
                             onSetText={(text: string) => {
                                 setStoredHeight(Number(text));
                                 updateUserDetails({ gender: String(storedGender), height: Number(text), weight: Number(storedWeight), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
@@ -50,7 +51,7 @@ export default function UserDetails(props: { userDetails : any}) {
                     <span className="min-w-[80px] text-2xl">Weight:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
                         <InlineInput 
-                            text={storedWeight} 
+                            text={String(storedWeight)} 
                             onSetText={(text: string) => {
                                 setStoredWeight(Number(text));
                                 updateUserDetails({ gender: String(storedGender), height: Number(storedHeight), weight: Number(text), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
