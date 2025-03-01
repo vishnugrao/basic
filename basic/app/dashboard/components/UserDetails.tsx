@@ -19,7 +19,6 @@ export default function UserDetails(props: {userDetails : User}) {
                     <span className="min-w-[80px] text-2xl">Gender:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput 
-                            defaultText="Male" 
                             altValues={["Male", "Female"]}
                             valIdx={1}
                             onSetText={(text: string) => {
@@ -42,7 +41,7 @@ export default function UserDetails(props: {userDetails : User}) {
                                 updateUserDetails({ gender: String(storedGender), height: Number(text), weight: Number(storedWeight), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
-                        <span className="text-2xl ml-1"><ToggleInput defaultText="cm" altValues={["cm", "ft"]} valIdx={1} onSetText={() => {}}/></span>
+                        <span className="text-2xl ml-1"><ToggleInput altValues={["cm", "ft"]} valIdx={1} onSetText={() => {}}/></span>
                     </div>
                 </div>
             </div>
@@ -58,7 +57,7 @@ export default function UserDetails(props: {userDetails : User}) {
                                 updateUserDetails({ gender: String(storedGender), height: Number(storedHeight), weight: Number(text), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
-                        <span className="text-2xl ml-1"><ToggleInput defaultText="kg" altValues={["kg", "lbs"]} valIdx={1} onSetText={() => {}}/></span>
+                        <span className="text-2xl ml-1"><ToggleInput altValues={["kg", "lbs"]} valIdx={1} onSetText={() => {}}/></span>
                     </div>
                 </div>
             </div>
