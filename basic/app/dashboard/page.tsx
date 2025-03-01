@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 
 import UserDetails from "./components/UserDetails";
 import { getUserDetails } from "./actions";
+import { User } from "@/types/types";
 
 export default async function DashboardPage() {
     const supabase = await createClient()
@@ -14,7 +15,7 @@ export default async function DashboardPage() {
         redirect('/login')
     }
 
-    const userDetails = await getUserDetails(data.user.email)
+    const userDetails: User = await getUserDetails(data.user.email as string)
 
     return (
         <>

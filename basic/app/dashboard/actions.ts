@@ -19,6 +19,7 @@ export async function updateUserDetails(userDetails: {
     gender: string;
     height: number;
     weight: number;
+    updated_at: string;
     email: string;
 }) {
     const supabase = await createClient()
