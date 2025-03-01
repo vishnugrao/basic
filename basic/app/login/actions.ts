@@ -39,8 +39,10 @@ export async function signup(formData: FormData) {
         redirect('/error')
     }
 
+    const uid = uuidv4()
+
     const { error: error2 } = await supabase.from('Users').insert({
-        id: uuidv4(),
+        id: uid,
         name: data.email,
         email: data.email,
         created_at: new Date().toISOString(),
@@ -53,6 +55,21 @@ export async function signup(formData: FormData) {
 
     if (error2) {
         console.log(error2)
+        redirect('/error')
+    }
+
+    const {error: error3} = await supabase.from('Goals').insert({
+        id: uuidv4(),
+        user_id: uid,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        goal: 'unknown',
+        diet: 'unknown',
+        lacto_ovo: 'unknown'
+    })
+    
+    if (error3) {
+        console.log(error3)
         redirect('/error')
     }
 

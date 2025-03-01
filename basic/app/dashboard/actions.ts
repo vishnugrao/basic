@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from "@/utils/supabase/server";
+import { UUID } from "crypto";
 import { redirect } from "next/navigation";
 
 export async function getUserDetails(email: string) {
@@ -10,6 +11,17 @@ export async function getUserDetails(email: string) {
 
     if (error || !data) {
         redirect('/login')
+    }
+
+    return data;
+}
+
+export async function getGoalDetails(user_id: UUID) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('Goals').select('*').eq('user_id', user_id).single()
+
+    if (error || !data) {
+        redirect('/error')
     }
 
     return data;
@@ -29,4 +41,22 @@ export async function updateUserDetails(userDetails: {
     if (error) {
         console.error(error)
     }
+}
+
+export async function updateGoalDetails(goalDetails : {
+    goal: string,
+    diet: string,
+    lacto_ovo: string,
+    updated_at: string,
+    user_id: UUID
+}) {
+
+    const supabase = await createClient()
+
+    const { error } = await supabase.from('Goals').update(goalDetails).eq('user_id', goalDetails.user_id)
+
+    if (error) {
+        console.error(error)
+    }
+    
 }

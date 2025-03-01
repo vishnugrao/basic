@@ -1,20 +1,19 @@
 import React, { useState, useCallback } from "react";
 
-export default function ToggleInput(props: { 
-    defaultText: string; 
+export default function ToggleInput(props: {
     altValues: string[];
     valIdx: number; 
     onSetText: (text: string) => void 
 }) {
-    const [inputValue, setInputValue] = useState(props.defaultText);
+    const [inputValue, setInputValue] = useState(props.altValues[0]);
     const [arrayIndex, setArrayIndex] = useState(props.valIdx);
 
     const handleSpanClick = useCallback(() => {
         setArrayIndex((arrayIndex + 1) % props.altValues.length)
-        const newValue = inputValue === props.defaultText ? props.altValues[arrayIndex] : props.defaultText;
+        const newValue = props.altValues[arrayIndex]
         setInputValue(newValue);
         props.onSetText(newValue);
-    }, [inputValue, arrayIndex, props]);
+    }, [arrayIndex, props]);
 
     return (
         <span className="inline-text relative">
