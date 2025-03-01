@@ -22,7 +22,6 @@ export async function updateUserDetails(userDetails: {
     updated_at: string;
     email: string;
 }) {
-    userDetails.updated_at = new Date().toISOString();
     const supabase = await createClient()
 
     const { error } = await supabase.from('Users').update(userDetails).eq('email', userDetails.email)

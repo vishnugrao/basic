@@ -5,7 +5,7 @@ import ToggleInput from "./ToggleInput"
 import InlineInput from "./InlineInput"
 import { updateUserDetails } from "../actions";
 
-export default function UserDetails(props: { userDetails: any }) {
+export default function UserDetails(props: { userDetails : any}) {
     const { userDetails } = props;
     const [storedGender, setStoredGender] = useState(userDetails.gender);
     const [storedHeight, setStoredHeight] = useState(userDetails.height);
@@ -22,7 +22,7 @@ export default function UserDetails(props: { userDetails: any }) {
                             activeText="Female" 
                             onSetText={(text: string) => {
                                 setStoredGender(text);
-                                updateUserDetails({gender: text, height: storedHeight, weight: storedWeight, email: userDetails.email});
+                                updateUserDetails({ gender: String(text), height: Number(storedHeight), weight: Number(storedWeight), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
                     </div>
@@ -37,7 +37,7 @@ export default function UserDetails(props: { userDetails: any }) {
                             text={storedHeight} 
                             onSetText={(text: string) => {
                                 setStoredHeight(Number(text));
-                                updateUserDetails({gender: storedGender, height: Number(text), weight: storedWeight, email: userDetails.email});
+                                updateUserDetails({ gender: String(storedGender), height: Number(text), weight: Number(storedWeight), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
                         <span className="text-2xl ml-1"><ToggleInput defaultText="cm" activeText="ft" onSetText={() => {}}/></span>
@@ -53,7 +53,7 @@ export default function UserDetails(props: { userDetails: any }) {
                             text={storedWeight} 
                             onSetText={(text: string) => {
                                 setStoredWeight(Number(text));
-                                updateUserDetails({gender: storedGender, height: storedHeight, weight: Number(text), email: userDetails.email});
+                                updateUserDetails({ gender: String(storedGender), height: Number(storedHeight), weight: Number(text), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
                         <span className="text-2xl ml-1"><ToggleInput defaultText="kg" activeText="lbs" onSetText={() => {}}/></span>
