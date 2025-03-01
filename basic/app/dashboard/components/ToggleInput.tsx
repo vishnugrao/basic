@@ -11,7 +11,7 @@ export default function ToggleInput(props: {
         const newValue = inputValue === props.defaultText ? props.activeText : props.defaultText;
         setInputValue(newValue);
         props.onSetText(newValue);
-    }, [inputValue, props.defaultText, props.activeText, props.onSetText]);
+    }, [inputValue, props]);
 
     return (
         <span className="inline-text relative">
