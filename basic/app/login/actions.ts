@@ -49,9 +49,9 @@ export async function signup(formData: FormData) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         last_sign_in_at: new Date().toISOString(),
-        height: 0,
-        weight: 0,
-        gender: 'unknown',
+        height: 173,
+        weight: 83,
+        gender: 'Female',
     })
 
     if (error2) {
@@ -64,13 +64,27 @@ export async function signup(formData: FormData) {
         user_id: uid,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        goal: 'unknown',
-        diet: 'unknown',
-        lacto_ovo: 'unknown'
+        goal: 'Bulk',
+        diet: 'Vegetarian',
+        lacto_ovo: 'Dairy Only'
     })
     
     if (error3) {
         console.log(error3)
+        redirect('/error')
+    }
+
+
+    const {error: error4} = await supabase.from('MealPlan').insert({
+        id: uuidv4(),
+        user_id: uid,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        cuisines: ['Mediterranian', 'Japanese', 'Mexican']
+    })
+
+    if (error4) {
+        console.log(error4)
         redirect('/error')
     }
 

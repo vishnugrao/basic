@@ -27,6 +27,17 @@ export async function getGoalDetails(user_id: UUID) {
     return data;
 }
 
+export async function getMealPlan(user_id: UUID) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('MealPlan').select('*').eq('user_id', user_id).single()
+
+    if (error || !data) {
+        redirect('/error')
+    }
+
+    return data;
+}
+
 export async function updateUserDetails(userDetails: {
     gender: string;
     height: number;
@@ -73,4 +84,18 @@ export async function updateGoalDetails(goalDetails : {
         console.error(error)
     }
     
+}
+
+export async function updateMealPlanner(mealPlan: {
+    cuisines: string[],
+    updated_at: string,
+    user_id: UUID
+}) {
+    const supabase = await createClient()
+
+    const { error } = await supabase.from('MealPlanner').update(mealPlan).eq('user_id', mealPlan.user_id)
+
+    if (error) {
+        console.error(error)
+    }
 }
