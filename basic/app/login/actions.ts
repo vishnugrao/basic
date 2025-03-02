@@ -49,9 +49,9 @@ export async function signup(formData: FormData) {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         last_sign_in_at: new Date().toISOString(),
-        height: 0,
-        weight: 0,
-        gender: 'unknown',
+        height: 173,
+        weight: 83,
+        gender: 'Female',
     })
 
     if (error2) {
@@ -64,9 +64,9 @@ export async function signup(formData: FormData) {
         user_id: uid,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        goal: 'unknown',
-        diet: 'unknown',
-        lacto_ovo: 'unknown'
+        goal: 'Bulk',
+        diet: 'Vegetarian',
+        lacto_ovo: 'Dairy Only'
     })
     
     if (error3) {
@@ -80,8 +80,8 @@ export async function signup(formData: FormData) {
         user_id: uid,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        cuisine1: 'no preference',
-        cuisine2: 'no preference',
+        cuisine1: 'Mediterranian',
+        cuisine2: 'Japanese',
         cuisine3: 'no preference'
     })
 
