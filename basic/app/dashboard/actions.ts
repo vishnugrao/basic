@@ -87,9 +87,7 @@ export async function updateGoalDetails(goalDetails : {
 }
 
 export async function updateMealPlanner(mealPlan: {
-    cuisine1: string,
-    cuisine2: string,
-    cuisine3: string,
+    cuisines: string[],
     updated_at: string,
     user_id: UUID
 }) {
