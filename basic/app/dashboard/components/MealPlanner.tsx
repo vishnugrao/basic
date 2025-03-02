@@ -19,7 +19,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
             <div className="flex-1">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[60px] text-2xl whitespace-nowrap">Cuisine Preferences:&nbsp;</span>
-                    <div className="flex items-baseline text-2xl">
+                    <div className="flex items-baseline text-2xl pl-[205px]">
                         <BubbleInput 
                             currentPreferences={mealPlan.cuisines} 
                             limitPreferences={limitPreferences}
@@ -30,9 +30,9 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
                             }}
                             />
                     </div>
-                    {/* <div className="flex items-baseline text-2xl">
+                    <div className="flex items-baseline text-2xl pl-5">
                         <SearchInput searchSet={props.searchSet.searchSet} />
-                    </div> */}
+                    </div>
                 </div>
             </div>
         </div>
