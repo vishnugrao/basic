@@ -24,6 +24,31 @@ export default function LoginPage() {
 
                     <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-8">
                         <form className="space-y-5">
+                            {isSignUp && (
+                                <div>
+                                    <label
+                                        htmlFor="name"
+                                        className="block text-sm font-medium text-gray-700 mb-1.5"
+                                    >
+                                        Username
+                                    </label>
+                                    <input
+                                        id="name"
+                                        name="name"
+                                        type="name"
+                                        required
+                                        disabled={isLoading}
+                                        placeholder="Vishnu Rao"
+                                        className="w-full px-4 py-3 text-gray-900 border border-gray-200 
+                                                rounded-xl focus:outline-none focus:ring-2 
+                                                focus:ring-[#B1454A] focus:ring-opacity-20 
+                                                focus:border-[#B1454A] disabled:bg-gray-50
+                                                disabled:cursor-not-allowed transition-colors
+                                                placeholder:text-gray-400"
+                                    />
+                                </div>
+                            )}
+
                             <div>
                                 <label 
                                     htmlFor="email" 

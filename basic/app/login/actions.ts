@@ -29,6 +29,7 @@ export async function signup(formData: FormData) {
     // type-casting here for convenience
     // in practice, you should validate your inputs
     const data = {
+        name: formData.get('name') as string,
         email: formData.get('email') as string,
         password: formData.get('password') as string,
     }
@@ -43,7 +44,7 @@ export async function signup(formData: FormData) {
 
     const { error: error2 } = await supabase.from('Users').insert({
         id: uid,
-        name: data.email,
+        name: data.name,
         email: data.email,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
