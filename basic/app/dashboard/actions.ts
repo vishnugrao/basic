@@ -43,6 +43,20 @@ export async function updateUserDetails(userDetails: {
     }
 }
 
+export async function updateUserName(userDetails: {
+    name: string,
+    updated_at: string,
+    user_id: string
+}) {
+    const supabase = await createClient()
+
+    const { error } = await supabase.from('Users').update(userDetails).eq('id', userDetails.user_id)
+
+    if (error) {
+        console.error(error)
+    }
+}
+
 export async function updateGoalDetails(goalDetails : {
     goal: string,
     diet: string,
