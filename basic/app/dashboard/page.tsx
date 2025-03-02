@@ -3,8 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 
 import UserDetails from "./components/UserDetails";
-import { getUserDetails, getGoalDetails, getMealPlan } from "./actions";
-import { User, Goal, MealPlan } from "@/types/types";
+import { getUserDetails, getGoalDetails, getMealPlan, getSearchSet} from "./actions";
+import { User, Goal, MealPlan, SearchSet } from "@/types/types";
 import GoalDetails from "./components/GoalDetails";
 import MealPlanner from "./components/MealPlanner";
 
@@ -21,6 +21,7 @@ export default async function DashboardPage() {
     const userDetails: User = await getUserDetails(data.user.email as string)
     const goalDetails: Goal = await getGoalDetails(userDetails.id)
     const mealPlan: MealPlan = await getMealPlan(userDetails.id)
+    const searchSet: SearchSet = await getSearchSet(userDetails.id)
 
     return (
         <>
@@ -34,7 +35,7 @@ export default async function DashboardPage() {
             </section>
             <section className="p-10 flex-col">
                 <p className="flex-auto text-2xl pb-10">Meal Plan</p>
-                <MealPlanner mealPlan={mealPlan} userId={userDetails.id} />
+                <MealPlanner mealPlan={mealPlan} userId={userDetails.id} searchSet={searchSet}/>
             </section>
             
         </>

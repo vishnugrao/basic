@@ -25,3 +25,9 @@ export interface MealPlan {
     user_id: UUID,
     cuisines: string[]
 }
+
+export interface SearchSet {
+    id: UUID,
+    user_id: UUID,
+    searchSet: string[]
+}
