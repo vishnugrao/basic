@@ -74,6 +74,22 @@ export async function signup(formData: FormData) {
         redirect('/error')
     }
 
+
+    const {error: error4} = await supabase.from('MealPlan').insert({
+        id: uuidv4(),
+        user_id: uid,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        cuisine1: 'no preference',
+        cuisine2: 'no preference',
+        cuisine3: 'no preference'
+    })
+
+    if (error4) {
+        console.log(error4)
+        redirect('/error')
+    }
+
     revalidatePath('/', 'layout')
     redirect('/')
 }

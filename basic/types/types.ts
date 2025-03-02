@@ -20,7 +20,7 @@ export interface Goal {
     lacto_ovo: string
 }
 
-export interface Meal {
+export interface MealPlan {
     id: UUID,
     user_id: UUID,
     cuisine1: string,

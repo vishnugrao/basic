@@ -3,9 +3,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 
 import UserDetails from "./components/UserDetails";
-import { getUserDetails, getGoalDetails} from "./actions";
-import { User, Goal } from "@/types/types";
+import { getUserDetails, getGoalDetails, getMealPlan } from "./actions";
+import { User, Goal, MealPlan } from "@/types/types";
 import GoalDetails from "./components/GoalDetails";
+import MealPlanner from "./components/MealPlanner";
 
 export default async function DashboardPage() {
 
@@ -19,6 +20,7 @@ export default async function DashboardPage() {
 
     const userDetails: User = await getUserDetails(data.user.email as string)
     const goalDetails: Goal = await getGoalDetails(userDetails.id)
+    const mealPlan: MealPlan = await getMealPlan(userDetails.id)
 
     return (
         <>
@@ -30,8 +32,9 @@ export default async function DashboardPage() {
                 <p className="flex-auto"></p>
                 <GoalDetails goalDetails={goalDetails} userId={userDetails.id} />
             </section>
-            <section className="p-10 flex">
-                <p className="flex-auto text-2xl">Meal Plan</p>
+            <section className="p-10 flex-col">
+                <p className="flex-auto text-2xl pb-10">Meal Plan</p>
+                <MealPlanner mealPlan={mealPlan} userId={userDetails.id} />
             </section>
             
         </>
