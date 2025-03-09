@@ -66,7 +66,7 @@ export default function SearchInput(props: {text: string, searchSet: string[]}) 
             setSearchValue(searchValue);
             setIsInputActive(false);
         }
-    }, [enter]);
+    }, [enter, searchValue]);
 
     const onEsc = useCallback(() => {
         if (esc) {
