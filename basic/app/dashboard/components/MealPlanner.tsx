@@ -13,7 +13,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
     const { userId } = props;
     const [ storedCuisines, setStoredCuisines ] = useState(mealPlan.cuisines);
     const [ isCuisineSearchOpen, setIsCuisineSearchOpen] = useState(false);
-    const limitPreferences = 3;
+    const limitPreferences = 3; // set the number of tags displayed on the page
 
     const toggleCuisineSearch = () => {
         setIsCuisineSearchOpen(!isCuisineSearchOpen);
@@ -46,7 +46,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
                         >
                             Change
                         </div>
-                        {isCuisineSearchOpen && <SearchInput searchSet={props.searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
+                        {isCuisineSearchOpen && <SearchInput cuisineSet={props.mealPlan.cuisines} searchSet={props.searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
                     </div>
                 </div>
             </div>
