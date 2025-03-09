@@ -58,6 +58,7 @@ export default function SearchInput(props: {text: string, searchSet: string[]}) 
 
     useOnClickOutside(wrapperRef, () => {
         if (isInputActive) {
+            setSearchValue(searchValue);
             setIsInputActive(false);
         }
     });
@@ -126,7 +127,7 @@ export default function SearchInput(props: {text: string, searchSet: string[]}) 
                     onClick={handleSpanClick}
                     className={`inline-text_copy inline-text_copy--${!isInputActive ? "active" : "hidden"}`}
                 >
-                    {props.text}
+                    {searchValue}
                 </span>
                 <input
                     ref={inputRef}
