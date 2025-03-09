@@ -1,10 +1,9 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 
 export default function BubbleInput(props: {
     currentPreferences: string[];
     limitPreferences: number;
-    searchSet: string[];
-    onSetPreferences: (preferences: string[]) => void
+    // onSetPreferences: (preferences: string[]) => void
 }) {
     const preferenceElements = [];
 

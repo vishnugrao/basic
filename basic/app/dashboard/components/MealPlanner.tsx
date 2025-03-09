@@ -2,16 +2,13 @@
 
 import { useState } from "react"
 import BubbleInput from "./BubbleInput"
-import SearchInput from "./SearchInput"
-import { updateMealPlanner } from "../actions"
+import CuisineInput from "./CuisineInput"
 import { MealPlan, SearchSet } from "@/types/types"
 import { UUID } from "crypto"
 
+
 export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, searchSet: SearchSet}) {
     const { mealPlan } = props;
-    const { searchSet } = props;
-    const { userId } = props;
-    const [ storedCuisines, setStoredCuisines ] = useState(mealPlan.cuisines);
     const [ isCuisineSearchOpen, setIsCuisineSearchOpen] = useState(false);
     const limitPreferences = 3; // set the number of tags displayed on the page
 
@@ -32,12 +29,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
                         <BubbleInput 
                             currentPreferences={mealPlan.cuisines} 
                             limitPreferences={limitPreferences}
-                            searchSet={searchSet.searchSet}
-                            onSetPreferences={(preferences: string[]) => {
-                                setStoredCuisines(preferences.slice(0, limitPreferences));
-                                updateMealPlanner({ cuisines: preferences.slice(0, limitPreferences), updated_at: String(new Date().toISOString()), user_id: userId})
-                            }}
-                            />
+                        />
                     </div>
                     
                     <div className="flex items-baseline text-2xl pl-2">
@@ -46,7 +38,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
                         >
                             Change
                         </div>
-                        {isCuisineSearchOpen && <SearchInput cuisineSet={props.mealPlan.cuisines} searchSet={props.searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
+                        {isCuisineSearchOpen && <CuisineInput cuisineSet={props.mealPlan.cuisines} searchSet={props.searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
                     </div>
                 </div>
             </div>
