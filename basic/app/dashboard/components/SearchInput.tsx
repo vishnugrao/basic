@@ -13,8 +13,11 @@ export default function SearchInput(props: {searchSet: string[], closeCuisineSea
         <div className="popup-container"
             onClick={closeCuisineSearch}
         >
-            <div className="flex gap-4 flex-wrap">
-                {displaySet}
+            <div className="flex flex-col bg-[#F5F5F1] w-1/2 rounded-xl">
+                <div className="p-10">SearchInput</div>
+                <div className="flex gap-4 flex-wrap p-10">
+                    {displaySet}
+                </div>
             </div>
         </div>
         
