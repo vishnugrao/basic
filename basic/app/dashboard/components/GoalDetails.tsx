@@ -52,7 +52,7 @@ export default function GoalDetails(props: {goalDetails: Goal, userId: UUID}) {
                     <span className="min-w-[80px] text-2xl">Lacto-Ovo:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput
-                            altValues={["Dairy only", "Eggs only", "Dairy + Eggs"]}
+                            altValues={["Dairy only", "Eggs only", "Dairy + Eggs", "No Eggs, No Dairy"]}
                             valIdx={1}
                             onSetText={(text: string) => {
                                 setStoredLacto_Ovo(String(text));

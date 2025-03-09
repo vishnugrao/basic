@@ -12,14 +12,23 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
     const { searchSet } = props;
     const { userId } = props;
     const [ storedCuisines, setStoredCuisines ] = useState(mealPlan.cuisines);
+    const [ isCuisineSearchOpen, setIsCuisineSearchOpen] = useState(false);
     const limitPreferences = 3;
+
+    const toggleCuisineSearch = () => {
+        setIsCuisineSearchOpen(!isCuisineSearchOpen);
+    }
+
+    const closeCuisineSearch = () => {
+        setIsCuisineSearchOpen(false);
+    }
 
     return(
         <div className="flex w-1/2 gap-4">
             <div className="flex-1">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[60px] text-2xl whitespace-nowrap">Cuisine Preferences:&nbsp;</span>
-                    <div className="flex items-baseline text-2xl pl-[205px]">
+                    <div className="flex items-baseline text-2xl">
                         <BubbleInput 
                             currentPreferences={mealPlan.cuisines} 
                             limitPreferences={limitPreferences}
@@ -30,8 +39,14 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
                             }}
                             />
                     </div>
-                    <div className="flex items-baseline text-2xl pl-5">
-                        <SearchInput searchSet={props.searchSet.searchSet} />
+                    
+                    <div className="flex items-baseline text-2xl pl-2">
+                        <div className="inline-text_copy inline-text_copy--active"
+                        onClick={toggleCuisineSearch}
+                        >
+                            Change
+                        </div>
+                        {isCuisineSearchOpen && <SearchInput searchSet={props.searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
                     </div>
                 </div>
             </div>
