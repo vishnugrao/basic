@@ -58,7 +58,7 @@ export default function SearchInput(props: {text: string, searchSet: string[]}) 
 
     useOnClickOutside(wrapperRef, () => {
         if (isInputActive) {
-            setSearchValue(searchValue);
+            setSearchValue("Search for a cuisine");
             setIsInputActive(false);
         }
     });
@@ -93,7 +93,10 @@ export default function SearchInput(props: {text: string, searchSet: string[]}) 
         setSearchValue(event.target.value);
     }, []);
 
-    const handleSpanClick = useCallback(() => setIsInputActive(true), [setIsInputActive]);
+    const handleSpanClick = useCallback(() => {
+        setIsInputActive(true);
+        setSearchValue("");
+    }, [setIsInputActive]);
 
     // Add function to update input width
     const updateInputWidth = useCallback(() => {
