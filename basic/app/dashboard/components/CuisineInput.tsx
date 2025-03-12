@@ -46,7 +46,7 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
         }
         const newCuisines = [...cuisines, newCuisine];
         setCuisines(newCuisines);
-        const newSlotMap = [...slotCuisineMap, { slot: newId, item: newId }];
+        const newSlotMap = [...slotCuisineMap, { slot: newId, item: cuisine }];
         setSlotCuisineMap(newSlotMap);
         setNextId(nextId + 1);
     }
@@ -60,9 +60,8 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                     e.stopPropagation();
                 }}>
                 <div className="flex flex-row p-10 pb-5">
-                    <div ref={swapyContainerRef} className="swapy-container flex gap-4 flex-wrap">
-                        {/* {preferenceSet} */}
-                        <div className="cuisines flex flex-row gap-4">
+                    <div ref={swapyContainerRef} className="swapy-container">
+                        <div className="cuisines flex flex-row gap-4 flex-wrap">
                             {slottedCuisines.map(({slotId, itemId, item}) => (
                                 <div data-swapy-slot={slotId} key={slotId}>
                                     <p key={itemId} data-swapy-item={itemId} data-swapy-handle className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer">
