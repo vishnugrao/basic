@@ -8,6 +8,7 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
     const { cuisineSet } = props;
     const { closeCuisineSearch } = props;
     const [nextId, setNextId] = useState(cuisineSet.length);
+    const [ rearrangeMode, setRearrangeMode ]  = useState(true);
 
     // swapy
     const [ cuisines, setCuisines ] = useState<SwapyItem[]>(cuisineSet.map((cuisine, index) => {
@@ -25,18 +26,20 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
     useEffect(() => utils.dynamicSwapy(swapyRef.current, cuisines, 'id', slotCuisineMap, setSlotCuisineMap), [cuisines])
 
     useEffect(() => {
-        swapyRef.current = createSwapy(swapyContainerRef.current!, {
-            manualSwap: true,
-        })
-    
-        swapyRef.current?.onSwap((event) => {
-            setSlotCuisineMap(event.newSlotItemMap.asArray)
-        })
+        if (rearrangeMode) {
+            swapyRef.current = createSwapy(swapyContainerRef.current!, {
+                manualSwap: true,
+            })
+        
+            swapyRef.current?.onSwap((event) => {
+                setSlotCuisineMap(event.newSlotItemMap.asArray)
+            })
 
-        return () => {
-            swapyRef.current?.destroy()
-        }
-    }, [])
+            return () => {
+                swapyRef.current?.destroy()
+            }
+        }   
+    }, [rearrangeMode])
 
     const addCuisine = (cuisine: string) => {
         const newId = nextId.toString();
@@ -73,13 +76,23 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                     </div>
                     <div className="flex-auto"></div>
                     <div className="flex items-baseline text-2xl pl-2 gap-4">
-                        <div className="inline-text_copy inline-text_copy--active">Remove</div>
-                        <div className="inline-text_copy inline-text_copy--active"
+                        <div className={"select-none cursor-pointer"}
                             onClick={() => {
-                                
+                                if (rearrangeMode) {
+                                    setRearrangeMode(false);
+                                }
                             }}
                         >
-                            Rearrange
+                            <p className={`border-4 ${rearrangeMode ? "border-transparent" : "border-current rounded-xl whitespace-nowrap"}`}>&nbsp;Remove&nbsp;</p>
+                        </div>
+                        <div className={"select-none"}
+                            onClick={() => {
+                                if (!rearrangeMode) {
+                                    setRearrangeMode(true);
+                                }
+                            }}
+                        >
+                            <p className={`border-4 ${rearrangeMode ? "border-current rounded-xl whitespace-nowrap" : "border-transparent"}`}>&nbsp;Rearrange&nbsp;</p>
                         </div>
                     </div>
                 </div>
