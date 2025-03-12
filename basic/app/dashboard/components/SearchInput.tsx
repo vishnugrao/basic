@@ -1,6 +1,6 @@
 'use client'
 
-import { JSX, useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, useMemo } from "react"
 import useKeyPress from "../hooks/useKeyPress";
 import useOnClickOutside from "../hooks/useOnClickOutside";
 
@@ -42,11 +42,11 @@ function sortBySimilarity(searchSet: string[], referenceWord: string): string[] 
     return searchCandidateDistances.map(cd => cd.searchCandidate);
 }
 
-export default function SearchInput(props: {text: string, searchSet: string[]}) {
+export default function SearchInput(props: { text: string, searchSet: string[], addCuisine: (cuisine: string, id: string) => void }) {
     const [ isInputActive, setIsInputActive ] = useState(false);
     const [ searchValue, setSearchValue ] = useState(props.text);
     const [ searchValueWidth, setSearchValueWidth ] = useState('auto');
-    const [ searchSuggestions, setSearchSuggestions ] = useState<JSX.Element[]>([]);
+    const { addCuisine } = props;
 
     const wrapperRef = useRef<HTMLSpanElement>(null);
     const textRef = useRef<HTMLSpanElement>(null);
@@ -102,25 +102,35 @@ export default function SearchInput(props: {text: string, searchSet: string[]}) 
     const updateInputWidth = useCallback(() => {
         if (measureRef.current) {
             const width = measureRef.current.offsetWidth;
-            setSearchValueWidth(`${width + 1}px`); // Add 8px padding for cursor space
+            setSearchValueWidth(`${width + 1}px`);
         }
     }, []);
 
-    const updateSearchSuggestions = useCallback(() => {
-        const sortedSuggestions = sortBySimilarity(props.searchSet, searchValue)
-            .slice(0, 20)
-            .map((suggestion, idx) => (
-                <p key={idx} className="text-2xl border-4 border-current rounded-xl whitespace-nowrap">&nbsp;{suggestion}&nbsp;</p>
-            ));
-        setSearchSuggestions(sortedSuggestions);
-        console.log(sortedSuggestions)
-    }, [props.searchSet, searchValue]);
-
-    // Update width when search value changes
+    // Effect for updating input width
     useEffect(() => {
         updateInputWidth();
-        updateSearchSuggestions();
-    }, [searchValue, updateInputWidth, updateSearchSuggestions]);
+    }, [searchValue, updateInputWidth]);
+
+    // Memoize the sorted suggestions data
+    const sortedSuggestions = useMemo(() => 
+        sortBySimilarity(props.searchSet, searchValue)
+            .slice(0, 20),
+        [props.searchSet, searchValue]
+    );
+
+    // Memoize the suggestion components
+    const suggestionComponents = useMemo(() => 
+        sortedSuggestions.map((suggestion, idx) => (
+            <p key={idx} 
+            className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer"
+            onClick={() => {
+                addCuisine(suggestion, idx.toString())
+            }}>
+                &nbsp;{suggestion}&nbsp;
+            </p>
+        )),
+        [sortedSuggestions, addCuisine]
+    );
     
     return (
         <>
@@ -148,7 +158,7 @@ export default function SearchInput(props: {text: string, searchSet: string[]}) 
                 </span>
             </span>
             <div className="flex gap-4 flex-wrap p-10 pt-5">
-                {searchSuggestions}
+                {suggestionComponents}
             </div>
         </>
     );
