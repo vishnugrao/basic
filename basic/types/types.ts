@@ -31,3 +31,8 @@ export interface SearchSet {
     user_id: UUID,
     searchSet: string[]
 }
+
+export interface SwapyItem {
+    id: string
+    cuisine: string
+}

@@ -1,38 +1,55 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import SearchInput from "./SearchInput";
-import { createSwapy } from "swapy";
+import { createSwapy, Swapy, SlotItemMapArray, utils } from "swapy";
+import { SwapyItem } from "@/types/types";
 
 export default function CuisineInput(props: {cuisineSet: string[], searchSet: string[], closeCuisineSearch: () => void}) {
     const { searchSet } = props;
     const { cuisineSet } = props;
     const { closeCuisineSearch } = props;
-    const displaySet = [];
-    const preferenceSet = [];
+    const [nextId, setNextId] = useState(cuisineSet.length);
 
-    const differenceSet = searchSet.filter(cuisine => cuisineSet.indexOf(cuisine) < 0)
+    // swapy
+    const [ cuisines, setCuisines ] = useState<SwapyItem[]>(cuisineSet.map((cuisine, index) => {
+        return {
+            id: index.toString(),
+            cuisine: cuisine
+        }
+    }))
+    const[ slotCuisineMap, setSlotCuisineMap ] = useState<SlotItemMapArray>(utils.initSlotItemMap(cuisines, 'id'))
+    const slottedCuisines = useMemo(() => utils.toSlottedItems(cuisines, 'id', slotCuisineMap), [cuisines, slotCuisineMap])
+    const swapyRef = useRef<Swapy|null>(null)
 
-    for (let preferenceTagIdx = 0; preferenceTagIdx < cuisineSet.length; preferenceTagIdx++) {
-        preferenceSet.push(<div data-swapy-slot={preferenceTagIdx} key={preferenceTagIdx}><p key={preferenceTagIdx} data-swapy-item={preferenceTagIdx} data-swapy-handle className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer">&nbsp;{cuisineSet[preferenceTagIdx]}&nbsp;</p></div>)
-    }
+    const swapyContainerRef = useRef<HTMLDivElement>(null)
 
-    for (let searchTagIdx = 0; searchTagIdx < differenceSet.length; searchTagIdx++){
-        displaySet.push(<p key={searchTagIdx} className="text-2xl border-4 border-current rounded-xl whitespace-nowrap">&nbsp;{differenceSet[searchTagIdx]}&nbsp;</p>)
-    }
+    useEffect(() => utils.dynamicSwapy(swapyRef.current, cuisines, 'id', slotCuisineMap, setSlotCuisineMap), [cuisines])
 
     useEffect(() => {
-        const container = document.querySelector('.swapy-container');
-        if (!container) return;
-
-        const swapy = createSwapy(container as HTMLElement, {
-            animation: 'none'
-        });
-
-        swapy.enable(true);
+        swapyRef.current = createSwapy(swapyContainerRef.current!, {
+            manualSwap: true,
+        })
+    
+        swapyRef.current?.onSwap((event) => {
+            setSlotCuisineMap(event.newSlotItemMap.asArray)
+        })
 
         return () => {
-            swapy.enable(false);
-        };
-    }, []);
+            swapyRef.current?.destroy()
+        }
+    }, [])
+
+    const addCuisine = (cuisine: string) => {
+        const newId = nextId.toString();
+        const newCuisine: SwapyItem = {
+            id: newId,
+            cuisine: cuisine
+        }
+        const newCuisines = [...cuisines, newCuisine];
+        setCuisines(newCuisines);
+        const newSlotMap = [...slotCuisineMap, { slot: newId, item: newId }];
+        setSlotCuisineMap(newSlotMap);
+        setNextId(nextId + 1);
+    }
 
     return (
         <div className="popup-container"
@@ -43,15 +60,24 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                     e.stopPropagation();
                 }}>
                 <div className="flex flex-row p-10 pb-5">
-                    <div className="swapy-container flex gap-4 flex-wrap">
-                        {preferenceSet}
+                    <div ref={swapyContainerRef} className="swapy-container flex gap-4 flex-wrap">
+                        {/* {preferenceSet} */}
+                        <div className="cuisines flex flex-row gap-4">
+                            {slottedCuisines.map(({slotId, itemId, item}) => (
+                                <div data-swapy-slot={slotId} key={slotId}>
+                                    <p key={itemId} data-swapy-item={itemId} data-swapy-handle className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer">
+                                        &nbsp;{item?.cuisine}&nbsp;
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                     <div className="flex-auto"></div>
                     <div className="flex items-baseline text-2xl pl-2 gap-4">
                         <div className="inline-text_copy inline-text_copy--active">Remove</div>
                         <div className="inline-text_copy inline-text_copy--active"
                             onClick={() => {
-
+                                
                             }}
                         >
                             Rearrange
@@ -61,7 +87,10 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                 {/* Send the differenceSet to searchInput */}
                 <SearchInput 
                     text={"Search for a cuisine"}
-                    searchSet={differenceSet} />
+                    searchSet={searchSet.filter(cuisine => (cuisines.map((cuisineItem) => {
+                        return cuisineItem.cuisine
+                    })).indexOf(cuisine) < 0)}
+                    addCuisine={addCuisine} />
             </div>
         </div>
         
