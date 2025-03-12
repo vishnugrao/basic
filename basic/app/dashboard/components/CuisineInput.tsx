@@ -54,6 +54,14 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
         setNextId(nextId + 1);
     }
 
+    const removeCuisine = (deleteSwapy: SwapyItem) => {
+        const newCuisines = cuisines.filter(cuisine => cuisine.id !== deleteSwapy.id);
+        setCuisines(newCuisines);
+        const newSlotMap = slotCuisineMap.filter(slot => slot.item !== deleteSwapy.cuisine);
+        setSlotCuisineMap(newSlotMap);
+        setNextId(nextId - 1);
+    }
+
     return (
         <div className="popup-container"
             onClick={closeCuisineSearch}
@@ -66,7 +74,12 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                     <div ref={swapyContainerRef} className="swapy-container">
                         <div className="cuisines flex flex-row gap-4 flex-wrap">
                             {slottedCuisines.map(({slotId, itemId, item}) => (
-                                <div data-swapy-slot={slotId} key={slotId}>
+                                <div data-swapy-slot={slotId} key={slotId}
+                                    onClick={() => {
+                                        if(!rearrangeMode) {
+                                            removeCuisine(item!);
+                                        }
+                                    }}>
                                     <p key={itemId} data-swapy-item={itemId} data-swapy-handle className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer">
                                         &nbsp;{item?.cuisine}&nbsp;
                                     </p>
