@@ -121,7 +121,6 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
                 </p>
             ));
         setSearchSuggestions(sortedSuggestions);
-        console.log(sortedSuggestions)
     }, [props.searchSet, searchValue, addCuisine]);
 
     // Update width when search value changes

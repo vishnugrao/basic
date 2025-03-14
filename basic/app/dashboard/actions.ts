@@ -104,7 +104,7 @@ export async function updateMealPlanner(mealPlan: {
 }) {
     const supabase = await createClient()
 
-    const { error } = await supabase.from('MealPlanner').update(mealPlan).eq('user_id', mealPlan.user_id)
+    const { error } = await supabase.from('MealPlan').update(mealPlan).eq('user_id', mealPlan.user_id)
 
     if (error) {
         console.error(error)

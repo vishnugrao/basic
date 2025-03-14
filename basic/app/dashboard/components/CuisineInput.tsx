@@ -3,7 +3,7 @@ import SearchInput from "./SearchInput";
 import { createSwapy, Swapy, SlotItemMapArray, utils } from "swapy";
 import { SwapyItem } from "@/types/types";
 
-export default function CuisineInput(props: {cuisineSet: string[], searchSet: string[], closeCuisineSearch: () => void}) {
+export default function CuisineInput(props: {cuisineSet: string[], searchSet: string[], closeCuisineSearch: (cuisines: string[]) => void}) {
     const { searchSet } = props;
     const { cuisineSet } = props;
     const { closeCuisineSearch } = props;
@@ -64,7 +64,13 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
 
     return (
         <div className="popup-container"
-            onClick={closeCuisineSearch}
+            onClick={() => {
+                closeCuisineSearch(
+                    cuisines.map((value) => {
+                        return value.cuisine;
+                    })
+                );
+            }}
         >
             <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup"
                 onClick={(e) => {
