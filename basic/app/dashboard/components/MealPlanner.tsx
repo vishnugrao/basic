@@ -22,7 +22,6 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
     const closeCuisineSearch = async (cuisines: string[]) => {
         setIsCuisineSearchOpen(false);
         setCuisines(cuisines);
-        console.log(cuisines);
         await updateMealPlanner({cuisines: cuisines, updated_at: new Date().toISOString(), user_id: userId});
     }
 
@@ -31,7 +30,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
             <div className="flex-1">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[60px] text-2xl whitespace-nowrap">Top 5 cuisines:&nbsp;&nbsp;</span>
-                    <div className="flex items-baseline text-2xl">
+                    <div className="flex items-baseline text-2xl pl-[40px]">
                         <BubbleInput 
                             currentPreferences={cuisines} 
                             limitPreferences={limitPreferences}
