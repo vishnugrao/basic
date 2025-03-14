@@ -59,7 +59,7 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
 
     useOnClickOutside(wrapperRef, () => {
         if (isInputActive) {
-            setSearchValue("Search for a cuisine");
+            setSearchValue(searchValue);
             setIsInputActive(false);
         }
     });
@@ -114,13 +114,13 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
                 <p key={idx} 
                 className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer"
                 onClick={() => {
-                    addCuisine(suggestion, idx.toString())
+                    addCuisine(suggestion, idx.toString());
+                    setSearchValue("Search for a cuisine");
                     }}>
                     &nbsp;{suggestion}&nbsp;
                 </p>
             ));
         setSearchSuggestions(sortedSuggestions);
-        console.log(sortedSuggestions)
     }, [props.searchSet, searchValue, addCuisine]);
 
     // Update width when search value changes

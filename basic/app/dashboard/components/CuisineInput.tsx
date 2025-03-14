@@ -3,7 +3,7 @@ import SearchInput from "./SearchInput";
 import { createSwapy, Swapy, SlotItemMapArray, utils } from "swapy";
 import { SwapyItem } from "@/types/types";
 
-export default function CuisineInput(props: {cuisineSet: string[], searchSet: string[], closeCuisineSearch: () => void}) {
+export default function CuisineInput(props: {cuisineSet: string[], searchSet: string[], closeCuisineSearch: (cuisines: string[]) => void}) {
     const { searchSet } = props;
     const { cuisineSet } = props;
     const { closeCuisineSearch } = props;
@@ -54,9 +54,23 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
         setNextId(nextId + 1);
     }
 
+    const removeCuisine = (deleteSwapy: SwapyItem) => {
+        const newCuisines = cuisines.filter(cuisine => cuisine.id !== deleteSwapy.id);
+        setCuisines(newCuisines);
+        const newSlotMap = slotCuisineMap.filter(slot => slot.item !== deleteSwapy.cuisine);
+        setSlotCuisineMap(newSlotMap);
+        setNextId(nextId - 1);
+    }
+
     return (
         <div className="popup-container"
-            onClick={closeCuisineSearch}
+            onClick={() => {
+                closeCuisineSearch(
+                    cuisines.map((value) => {
+                        return value.cuisine;
+                    })
+                );
+            }}
         >
             <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup"
                 onClick={(e) => {
@@ -66,7 +80,12 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                     <div ref={swapyContainerRef} className="swapy-container">
                         <div className="cuisines flex flex-row gap-4 flex-wrap">
                             {slottedCuisines.map(({slotId, itemId, item}) => (
-                                <div data-swapy-slot={slotId} key={slotId}>
+                                <div data-swapy-slot={slotId} key={slotId}
+                                    onClick={() => {
+                                        if(!rearrangeMode) {
+                                            removeCuisine(item!);
+                                        }
+                                    }}>
                                     <p key={itemId} data-swapy-item={itemId} data-swapy-handle className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer">
                                         &nbsp;{item?.cuisine}&nbsp;
                                     </p>

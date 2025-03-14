@@ -12,7 +12,7 @@ export default function BubbleInput(props: {
     }
 
     return (
-        <div className="flex gap-2">
+        <div className="flex gap-4">
             {preferenceElements}
         </div>
     )
