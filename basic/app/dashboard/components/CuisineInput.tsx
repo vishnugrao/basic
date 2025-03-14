@@ -18,6 +18,7 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
         }
     }))
     const[ slotCuisineMap, setSlotCuisineMap ] = useState<SlotItemMapArray>(utils.initSlotItemMap(cuisines, 'id'))
+    console.log(slotCuisineMap);
     const slottedCuisines = useMemo(() => utils.toSlottedItems(cuisines, 'id', slotCuisineMap), [cuisines, slotCuisineMap])
     const swapyRef = useRef<Swapy|null>(null)
 
@@ -66,9 +67,7 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
         <div className="popup-container"
             onClick={() => {
                 closeCuisineSearch(
-                    cuisines.map((value) => {
-                        return value.cuisine;
-                    })
+                    slottedCuisines.map(({ item }) => item?.cuisine).filter((cuisine): cuisine is string => cuisine !== undefined)
                 );
             }}
         >
