@@ -82,7 +82,7 @@ export async function signup(formData: FormData) {
         user_id: uid,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        cuisines: ['Mediterranian', 'Japanese', 'Mexican']
+        cuisines: ['Mediterranean', 'Japanese', 'Mexican']
     })
 
     if (error4) {

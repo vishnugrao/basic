@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 
 export default function ToggleInput(props: {
     altValues: string[];
@@ -6,14 +6,16 @@ export default function ToggleInput(props: {
     onSetText: (text: string) => void 
 }) {
     const { valIdx } = props;
-    const [inputValue, setInputValue] = useState(props.altValues[valIdx]);
-    const [arrayIndex, setArrayIndex] = useState(props.valIdx);
+    const [arrayIndex, setArrayIndex] = useState(valIdx);
+
+    useEffect(() => {
+        setArrayIndex(valIdx);
+    }, [valIdx]);
 
     const handleSpanClick = useCallback(() => {
-        setArrayIndex((arrayIndex + 1) % props.altValues.length)
-        const newValue = props.altValues[arrayIndex]
-        setInputValue(newValue);
-        props.onSetText(newValue);
+        const newIndex = (arrayIndex + 1) % props.altValues.length;
+        setArrayIndex(newIndex);
+        props.onSetText(props.altValues[newIndex]);
     }, [arrayIndex, props]);
 
     return (
@@ -22,7 +24,7 @@ export default function ToggleInput(props: {
                 onClick={handleSpanClick}
                 className="inline-text_copy inline-text_copy--active cursor-pointer"
             >
-                {inputValue}
+                {props.altValues[arrayIndex]}
             </span>
         </span>
     );

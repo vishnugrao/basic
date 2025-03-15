@@ -1,19 +1,26 @@
 'use client'
 
-import { useState } from "react"
 import BubbleInput from "./BubbleInput"
 import CuisineInput from "./CuisineInput"
 import { MealPlan, SearchSet } from "@/types/types"
-import { UUID } from "crypto"
-import { updateMealPlanner } from "../actions"
+import { Dispatch, SetStateAction } from "react"
 
+interface MealPlannerProps {
+    mealPlan: MealPlan;
+    searchSet: SearchSet;
+    isCuisineSearchOpen: boolean;
+    setIsCuisineSearchOpen: Dispatch<SetStateAction<boolean>>;
+    onUpdate: (updates: Partial<MealPlan>) => Promise<void>;
+}
 
-export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, searchSet: SearchSet}) {
-    const { mealPlan } = props;
-    const { userId } = props;
-    const [ isCuisineSearchOpen, setIsCuisineSearchOpen] = useState(false);
+export default function MealPlanner({ 
+    mealPlan,
+    searchSet,
+    isCuisineSearchOpen,
+    setIsCuisineSearchOpen,
+    onUpdate
+}: MealPlannerProps) {
     const limitPreferences = 5; // set the number of tags displayed on the page
-    const [ cuisines, setCuisines ] = useState(mealPlan.cuisines);
 
     const toggleCuisineSearch = () => {
         setIsCuisineSearchOpen(!isCuisineSearchOpen);
@@ -21,8 +28,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
 
     const closeCuisineSearch = async (cuisines: string[]) => {
         setIsCuisineSearchOpen(false);
-        setCuisines(cuisines);
-        await updateMealPlanner({cuisines: cuisines, updated_at: new Date().toISOString(), user_id: userId});
+        onUpdate({ cuisines });
     }
 
     return(
@@ -32,7 +38,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
                     <p className="min-w-[200px] text-2xl whitespace-nowrap">Top 5 cuisines:&nbsp;&nbsp;</p>
                     <div className="flex items-baseline text-2xl">
                         <BubbleInput 
-                            currentPreferences={cuisines} 
+                            currentPreferences={mealPlan.cuisines} 
                             limitPreferences={limitPreferences}
                         />
                     </div>
@@ -45,7 +51,7 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
                         >
                             <p>&nbsp;Change&nbsp;</p>
                         </div>
-                        {isCuisineSearchOpen && <CuisineInput cuisineSet={cuisines} searchSet={props.searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
+                        {isCuisineSearchOpen && <CuisineInput cuisineSet={mealPlan.cuisines} searchSet={searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
                     </div>
                 </div>
             </div>
