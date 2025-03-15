@@ -26,10 +26,10 @@ export default function MealPlanner(props: {mealPlan: MealPlan, userId: UUID, se
     }
 
     return(
-        <div className="flex w-1/2 gap-4 flex-wrap">
+        <div className="flex w-1/3 gap-4 flex-wrap">
             <div className="flex-1">
                 <div className="flex items-baseline h-10">
-                    <p className="min-w-[100px] text-2xl whitespace-nowrap">Top 5 cuisines:&nbsp;&nbsp;</p>
+                    <p className="min-w-[200px] text-2xl whitespace-nowrap">Top 5 cuisines:&nbsp;&nbsp;</p>
                     <div className="flex items-baseline text-2xl">
                         <BubbleInput 
                             currentPreferences={cuisines} 

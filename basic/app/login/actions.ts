@@ -19,8 +19,8 @@ export async function login(formData:FormData) {
         redirect ('/error')
     }
 
-    revalidatePath('/', 'layout')
-    redirect('/')
+    revalidatePath('/dashboard', 'layout')
+    redirect('/dashboard')
 }
 
 export async function signup(formData: FormData) {
@@ -52,6 +52,7 @@ export async function signup(formData: FormData) {
         height: 173,
         weight: 83,
         gender: 'Female',
+        age: 22
     })
 
     if (error2) {
@@ -66,7 +67,8 @@ export async function signup(formData: FormData) {
         updated_at: new Date().toISOString(),
         goal: 'Bulk',
         diet: 'Vegetarian',
-        lacto_ovo: 'Dairy Only'
+        lacto_ovo: 'Dairy Only', 
+        activity_level: 1.55
     })
     
     if (error3) {
@@ -101,6 +103,6 @@ export async function signup(formData: FormData) {
         redirect('/error')
     }
 
-    revalidatePath('/', 'layout')
-    redirect('/')
+    revalidatePath('/dashboard', 'layout')
+    redirect('/dashboard')
 }

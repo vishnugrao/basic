@@ -9,7 +9,8 @@ export interface User {
     last_sign_in_at: string,
     height: number,
     weight: number,
-    gender: string
+    gender: string,
+    age: number
 }
 
 export interface Goal {
@@ -17,7 +18,8 @@ export interface Goal {
     user_id: UUID,
     goal: string,
     diet: string,
-    lacto_ovo: string
+    lacto_ovo: string,
+    activity_level: number,
 }
 
 export interface MealPlan {
