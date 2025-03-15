@@ -11,19 +11,21 @@ export default function UserDetails(props: {userDetails : User}) {
     const [storedGender, setStoredGender] = useState(userDetails.gender);
     const [storedHeight, setStoredHeight] = useState(userDetails.height);
     const [storedWeight, setStoredWeight] = useState(userDetails.weight);
+    const [storedAge, setStoredAge] = useState(userDetails.age);
+
 
     return (
-        <div className="flex w-1/2 gap-4">
+        <div className="flex w-2/3 gap-4">
             <div className="flex-1">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[80px] text-2xl">Gender:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput 
                             altValues={["Male", "Female"]}
-                            valIdx={1}
+                            valIdx={0}
                             onSetText={(text: string) => {
                                 setStoredGender(text);
-                                updateUserDetails({ gender: String(text), height: Number(storedHeight), weight: Number(storedWeight), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
+                                updateUserDetails({ gender: String(text), height: Number(storedHeight), weight: Number(storedWeight), age: Number(storedAge), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
                     </div>
@@ -38,10 +40,10 @@ export default function UserDetails(props: {userDetails : User}) {
                             text={String(storedHeight)} 
                             onSetText={(text: string) => {
                                 setStoredHeight(Number(text));
-                                updateUserDetails({ gender: String(storedGender), height: Number(text), weight: Number(storedWeight), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
+                                updateUserDetails({ gender: String(storedGender), height: Number(text), weight: Number(storedWeight), age: Number(storedAge), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
-                        <span className="text-2xl ml-1"><ToggleInput altValues={["cm", "ft"]} valIdx={1} onSetText={() => {}}/></span>
+                        <span className="text-2xl ml-1"><ToggleInput altValues={["cm", "ft"]} valIdx={0} onSetText={() => {}}/></span>
                     </div>
                 </div>
             </div>
@@ -54,10 +56,26 @@ export default function UserDetails(props: {userDetails : User}) {
                             text={String(storedWeight)} 
                             onSetText={(text: string) => {
                                 setStoredWeight(Number(text));
-                                updateUserDetails({ gender: String(storedGender), height: Number(storedHeight), weight: Number(text), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
+                                updateUserDetails({ gender: String(storedGender), height: Number(storedHeight), weight: Number(text), age: Number(storedAge), updated_at: String(new Date().toISOString()), email: String(userDetails.email)});
                             }} 
                         />
-                        <span className="text-2xl ml-1"><ToggleInput altValues={["kg", "lbs"]} valIdx={1} onSetText={() => {}}/></span>
+                        <span className="text-2xl ml-1"><ToggleInput altValues={["kg", "lbs"]} valIdx={0} onSetText={() => {}}/></span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex-1">
+                <div className="flex items-baseline h-10">
+                    <span className="min-w-[60px] text-2xl">Age:&nbsp;</span>
+                    <div className="flex items-baseline text-2xl">
+                        <InlineInput
+                            text={String(storedAge)}
+                            onSetText={(text: string) => {
+                                setStoredAge(Number(text));
+                                updateUserDetails({ gender: String(storedGender), height: Number(storedHeight), weight: Number(storedWeight), age: Number(text), updated_at: String(new Date().toISOString()), email: String(userDetails.email) });
+                            }}
+                        />
+                        <span className="text-2xl ml-1">yrs</span>
                     </div>
                 </div>
             </div>

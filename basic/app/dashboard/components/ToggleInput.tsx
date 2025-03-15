@@ -5,7 +5,8 @@ export default function ToggleInput(props: {
     valIdx: number; 
     onSetText: (text: string) => void 
 }) {
-    const [inputValue, setInputValue] = useState(props.altValues[0]);
+    const { valIdx } = props;
+    const [inputValue, setInputValue] = useState(props.altValues[valIdx]);
     const [arrayIndex, setArrayIndex] = useState(props.valIdx);
 
     const handleSpanClick = useCallback(() => {

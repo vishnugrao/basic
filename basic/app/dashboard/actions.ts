@@ -53,6 +53,7 @@ export async function updateUserDetails(userDetails: {
     gender: string;
     height: number;
     weight: number;
+    age: number;
     updated_at: string;
     email: string;
 }) {
@@ -83,6 +84,7 @@ export async function updateGoalDetails(goalDetails : {
     goal: string,
     diet: string,
     lacto_ovo: string,
+    activity_level: number,
     updated_at: string,
     user_id: UUID
 }) {
