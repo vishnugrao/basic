@@ -40,7 +40,7 @@ export default function GoalDetails(props: {goalDetails: Goal, userId: UUID}) {
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput
                             altValues={["Bulk", "Shred", "Recomp"]}
-                            valIdx={0}
+                            valIdx={["Bulk", "Shred", "Recomp"].indexOf(storedGoal)}
                             onSetText={(text: string) => {
                                 setStoredGoal(text);
                                 updateGoalDetails({ goal: String(text), diet: String(storedDiet), lacto_ovo: String(storedLacto_Ovo), activity_level: activity_level_conversion[String(storedActivity_Level)], updated_at: String(new Date().toISOString()), user_id: userId});
@@ -56,7 +56,7 @@ export default function GoalDetails(props: {goalDetails: Goal, userId: UUID}) {
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput
                             altValues={["Vegetarian", "Non-Vegetarian", "Vegan", "Pescatarian", "Flexitarian", "Macrobiotic"]}
-                            valIdx={0}
+                            valIdx={["Vegetarian", "Non-Vegetarian", "Vegan", "Pescatarian", "Flexitarian", "Macrobiotic"].indexOf(storedDiet)}
                             onSetText={(text: string) => {
                                 setStoredDiet(String(text));
                                 updateGoalDetails({ goal: String(storedGoal), diet: String(text), lacto_ovo: String(storedLacto_Ovo), activity_level: activity_level_conversion[String(storedActivity_Level)], updated_at: String(new Date().toISOString()), user_id: userId});
@@ -72,9 +72,12 @@ export default function GoalDetails(props: {goalDetails: Goal, userId: UUID}) {
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput
                             altValues={["Dairy only", "Eggs only", "Dairy + Eggs", "No Eggs, No Dairy"]}
-                            valIdx={0}
+                            valIdx={(() => {
+                                const idx = ["Dairy only", "Eggs only", "Dairy + Eggs", "No Eggs, No Dairy"].indexOf(storedLacto_Ovo);
+                                return idx >= 0 ? idx : 0; // Default to first option if not found
+                            })()}
                             onSetText={(text: string) => {
-                                setStoredLacto_Ovo(String(text));
+                                setStoredLacto_Ovo(text);
                                 updateGoalDetails({ goal: String(storedGoal), diet: String(storedDiet), lacto_ovo: String(text), activity_level: activity_level_conversion[String(storedActivity_Level)], updated_at: String(new Date().toISOString()), user_id: userId});
                             }}
                         />
