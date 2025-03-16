@@ -125,6 +125,7 @@ export default function DashboardClient({
                 <QuantitativeNutrition 
                     userDetails={userDetails} 
                     goalDetails={goalDetails}
+                    mealPlan={mealPlan}
                     recipesDetails={recipesDetails}
                     onUpdate={handleRecipesUpdate}
                 />
