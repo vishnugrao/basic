@@ -20,7 +20,7 @@ export default function MealPlanner({
     setIsCuisineSearchOpen,
     onUpdate
 }: MealPlannerProps) {
-    const limitPreferences = 5; // set the number of tags displayed on the page
+    const limitPreferences = 4; // set the number of tags displayed on the page
 
     const toggleCuisineSearch = () => {
         setIsCuisineSearchOpen(!isCuisineSearchOpen);
@@ -35,7 +35,7 @@ export default function MealPlanner({
         <div className="flex w-1/3 gap-4 flex-wrap">
             <div className="flex-1">
                 <div className="flex items-baseline h-10">
-                    <p className="min-w-[200px] text-2xl whitespace-nowrap">Top 5 cuisines:&nbsp;&nbsp;</p>
+                    <p className="min-w-[200px] text-2xl whitespace-nowrap">Top 4 cuisines:&nbsp;&nbsp;</p>
                     <div className="flex items-baseline text-2xl">
                         <BubbleInput 
                             currentPreferences={mealPlan.cuisines} 
