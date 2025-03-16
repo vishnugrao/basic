@@ -38,3 +38,15 @@ export interface SwapyItem {
     id: string
     cuisine: string
 }
+
+export interface Recipe {
+    id: UUID,
+    user_id: UUID,
+    updated_at: string
+    recipe_name: string,
+    cook_date: Date,
+    cuisine: string,
+    protein: number,
+    fat: number
+
+}

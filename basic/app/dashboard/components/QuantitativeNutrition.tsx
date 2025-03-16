@@ -1,9 +1,9 @@
 'use client'
 
-import { Goal, User } from "@/types/types";
+import { Goal, Recipe, User } from "@/types/types";
 import { useEffect, useState } from "react";
 
-export default function QuantitativeNutrition(props: {userDetails: User, goalDetails: Goal}) {
+export default function QuantitativeNutrition(props: { userDetails: User, goalDetails: Goal, onUpdate: (updates: Recipe[]) => Promise<void> }) {
     const { userDetails } = props;
     const { goalDetails } = props;
     const [tdee, setTDEE] = useState(0);
@@ -20,20 +20,20 @@ export default function QuantitativeNutrition(props: {userDetails: User, goalDet
     useEffect(() => {
         if (goalDetails.goal == "Bulk") {
             setOffset(0.15 * tdee);
-            setProtein(1.8 * userDetails.weight);
+            setProtein(Math.min(Math.round(1.9 * userDetails.weight), userDetails.height + 20));
             setFat(Math.round((0.25 * (tdee + offset)) / 9));
         }
         if (goalDetails.goal == "Shred") {
             setOffset(-0.2 * tdee);
-            setProtein(2 * userDetails.weight);
+            setProtein(Math.min(Math.round(2.1 * userDetails.weight), userDetails.height + 20));
             setFat(Math.round((0.21 * (tdee + offset)) / 9));
         }
         if (goalDetails.goal == "Recomp") {
             setOffset(0);
-            setProtein(1.9 * userDetails.weight);
+            setProtein(Math.min(Math.round(1.9 * userDetails.weight), userDetails.height + 20));
             setFat(Math.round((0.23 * (tdee + offset))/9));
         }
-    }, [goalDetails.goal, tdee, userDetails.weight, offset])
+    }, [goalDetails.goal, tdee, userDetails.weight, offset, userDetails.height])
 
     return (
         <>
@@ -42,6 +42,11 @@ export default function QuantitativeNutrition(props: {userDetails: User, goalDet
                 <p className="text-2xl">Daily Target:&nbsp;{tdee + offset}</p>
                 <p className="text-2xl">Protein Target:&nbsp;{protein}g</p>
                 <p className="text-2xl">Fat Target:&nbsp;{fat}g</p>
+            </div>
+            <div className="flex pt-4 w-full h-[800px]">
+                <div>
+
+                </div>
             </div>
         </>
     );

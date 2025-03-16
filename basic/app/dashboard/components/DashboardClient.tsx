@@ -5,19 +5,21 @@ import UserDetails from "./UserDetails";
 import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
-import { User, Goal, MealPlan, SearchSet } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner } from "../actions";
+import { User, Goal, MealPlan, SearchSet, Recipe } from "@/types/types";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
     initialGoalDetails,
     initialMealPlan,
-    searchSet
+    searchSet,
+    initialRecipesDetails,
 }: {
     initialUserDetails: User,
     initialGoalDetails: Goal,
     initialMealPlan: MealPlan,
-    searchSet: SearchSet
+    searchSet: SearchSet,
+    initialRecipesDetails: Recipe[],
 }) {
     
     const [userDetails, setUserDetails] = useState<User>(initialUserDetails);
@@ -38,6 +40,8 @@ export default function DashboardClient({
 
     const [mealPlan, setMealPlan] = useState<MealPlan>(initialMealPlan);
     const [isCuisineSearchOpen, setIsCuisineSearchOpen] = useState(false);
+
+    const [recipesDetails, setRecipesDetails] = useState<Recipe[]>(initialRecipesDetails);
 
     const handleUserUpdate = async (updates: Partial<User>) => {
         const updatedUser = { ...userDetails, ...updates, updated_at: new Date().toISOString() };
@@ -70,9 +74,24 @@ export default function DashboardClient({
         await updateMealPlanner(updatedMealPlan);
     };
 
+    const handleRecipesUpdate = async (updates: Recipe[]) => {
+        // compute set difference by id before deleting later
+        for(let i = 0; i < recipesDetails.length; i++){
+            deleteRecipes(recipesDetails[i].user_id, recipesDetails[i].id);
+        }
+        const updatedRecipes: Recipe[] = [];
+        for (let i = 0; i < updates.length; i++) {
+            updatedRecipes.push(updates[i]);
+        }
+        setRecipesDetails(updatedRecipes);
+        for(let i = 0; i < updatedRecipes.length; i) {
+            insertRecipes(updatedRecipes[i]);
+        }
+    }
+
     return (
-        <>
-            <section className="px-10 pt-10 pb-5 flex">
+        <div className="flex flex-col">
+            <div className="px-10 pt-10 pb-5 flex">
                 <p className="flex-auto text-2xl">Hello {userDetails.name}</p>
                 <UserDetails 
                     userDetails={userDetails}
@@ -82,8 +101,8 @@ export default function DashboardClient({
                     setWeightUnit={setWeightUnit}
                     onUpdate={handleUserUpdate}
                 />
-            </section>
-            <section className="px-10 flex">
+            </div>
+            <div className="px-10 flex">
                 <p className="flex-auto"></p>
                 <GoalDetails 
                     goalDetails={goalDetails}
@@ -91,9 +110,9 @@ export default function DashboardClient({
                     setActivityLevel={setActivityLevel}
                     onUpdate={handleGoalUpdate}
                 />
-            </section>
-            <section className="p-10 flex-col">
-                <p className="flex-auto text-2xl pb-10">Meal Plan</p>
+            </div>
+            <div className="flex p-10 flex-col">
+                <p className="flex flex-auto text-2xl pb-10">Meal Plan</p>
                 <MealPlanner 
                     mealPlan={mealPlan}
                     searchSet={searchSet}
@@ -101,13 +120,14 @@ export default function DashboardClient({
                     setIsCuisineSearchOpen={setIsCuisineSearchOpen}
                     onUpdate={handleMealPlanUpdate}
                 />
-            </section>
-            <section className="p-10 pt-20">
+            </div>
+            <div className="p-10 pt-20">
                 <QuantitativeNutrition 
                     userDetails={userDetails} 
                     goalDetails={goalDetails}
+                    onUpdate={handleRecipesUpdate}
                 />
-            </section>
-        </>
+            </div>
+        </div>
     );
 } 
