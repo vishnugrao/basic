@@ -38,3 +38,50 @@ export interface SwapyItem {
     id: string
     cuisine: string
 }
+
+export interface Recipe {
+    id: UUID;
+    user_id: UUID;
+    recipe_name: string;
+    cuisine: string;
+    protein: number;
+    fat: number;
+    calories: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Ingredient {
+    id: UUID;
+    user_id: UUID;
+    recipe_id: UUID;
+    name: string;
+    amount: number;
+    metric: string;
+    purchased: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Preprocessing {
+    id: UUID;
+    user_id: UUID;
+    recipe_id: UUID;
+    operation: string;
+    specific: string;
+    instruction: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Step {
+    id: UUID;
+    user_id: UUID;
+    recipe_id: UUID;
+    step_number: number;
+    instruction: string;
+    duration: number;
+    indicator: string;
+    created_at: string;
+    updated_at: string;
+}

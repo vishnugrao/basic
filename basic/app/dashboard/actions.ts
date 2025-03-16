@@ -1,8 +1,19 @@
 'use server'
 
+import { Recipe } from "@/types/types";
 import { createClient } from "@/utils/supabase/server";
 import { UUID } from "crypto";
 import { redirect } from "next/navigation";
+
+export async function insertRecipes(recipe: Recipe) {
+    const supabase = await createClient()
+
+    const { error } = await supabase.from('Users').insert(recipe);
+
+    if (error) {
+        redirect('/login')
+    }
+}
 
 export async function getUserDetails(email: string) {
     const supabase = await createClient()
@@ -46,6 +57,17 @@ export async function getSearchSet(user_id: UUID) {
         redirect('/error')
     }
     
+    return data;
+}
+
+export async function getRecipes(user_id: UUID) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('Recipes').select('*').eq('user_id', user_id)
+
+    if (error) {
+        redirect('/error')
+    }
+
     return data;
 }
 
@@ -110,5 +132,31 @@ export async function updateMealPlanner(mealPlan: {
 
     if (error) {
         console.error(error)
+    }
+}
+
+export async function updateRecipes(recipeDetails: {
+    recipe_name: string,
+    cuisine: string, 
+    protein: number,
+    fat: number, 
+    user_id: UUID,
+    recipe_id: UUID
+}) {
+    const supabase = await createClient()
+
+    const { error } = await supabase.from('Recipes').update(recipeDetails).eq('user_id', recipeDetails.user_id).eq('recipe_id', recipeDetails.recipe_id);
+
+    if (error) {
+        console.error(error)
+    }
+}
+
+export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {
+    const supabase = await createClient()
+    const { error } = await supabase.from('Recipes').select('*').eq('user_id', user_id).eq('recipe_id', recipe_id);
+
+    if (error) {
+        redirect('/error')
     }
 }
