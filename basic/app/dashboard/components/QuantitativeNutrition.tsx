@@ -3,9 +3,10 @@
 import { Goal, Recipe, User } from "@/types/types";
 import { useEffect, useState } from "react";
 
-export default function QuantitativeNutrition(props: { userDetails: User, goalDetails: Goal, onUpdate: (updates: Recipe[]) => Promise<void> }) {
+export default function QuantitativeNutrition(props: { userDetails: User, goalDetails: Goal, recipesDetails: Recipe[], onUpdate: (updates: Recipe[]) => Promise<void> }) {
     const { userDetails } = props;
     const { goalDetails } = props;
+    const { recipesDetails } = props;
     const [tdee, setTDEE] = useState(0);
     const [offset, setOffset] = useState(0);
     const [protein, setProtein] = useState(0);
@@ -43,10 +44,14 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                 <p className="text-2xl">Protein Target:&nbsp;{protein}g</p>
                 <p className="text-2xl">Fat Target:&nbsp;{fat}g</p>
             </div>
-            <div className="flex pt-4 w-full h-[800px]">
-                <div>
-
-                </div>
+            <div className="flex min-h-[800px] items-center justify-center">
+                {recipesDetails.length === 0 && (
+                    <div>
+                        <p className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer">
+                            &nbsp;Generate a meal plan!&nbsp;
+                        </p>
+                    </div>
+                )}
             </div>
         </>
     );
