@@ -164,7 +164,11 @@ Nutritional Targets (Remaining for the week):
 - Protein: ${remainingProtein}g
 - Fat: ${remainingFat}g
 
-Selected Cuisine: ${cuisines[Math.floor(Math.random() * cuisines.length)]}
+Selected Cuisine: ${cuisines[Math.floor(Math.random() * 4)]}
+Selected Diet: ${goalDetails.diet}
+Selected Lacto-Ovo: ${goalDetails.lacto_ovo}
+
+For preprocessing, the operation should be an action that the preprocessing can be grouped by, and the specific should provide a more specific keyword for the action.
 
 Please provide the recipe in the following JSON structure:
 {

@@ -40,7 +40,7 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
         }
     }, [goalDetails.goal, tdee, userDetails.weight, offset, userDetails.height])
 
-    const rerollRecipes = async () => {
+    const rollRecipes = async () => {
         setIsLoading(true);
         try {
             if (!mealPlan?.cuisines) {
@@ -71,6 +71,10 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                 const data = await response.json();
                 const recipe = data.recipe;
 
+                if (!recipe || typeof recipe !== 'object') {
+                    throw new Error('Invalid recipe data received');
+                }
+
                 newRecipes.push({
                     id: uuidv4() as UUID,
                     user_id: userDetails.id,
@@ -83,8 +87,8 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                     updated_at: new Date().toISOString(),
                 });
 
-                // Insert ingredients
-                for (const ingredient of recipe.ingredients) {
+                const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+                for (const ingredient of ingredients) {
                     await fetch('/api/ingredient', {
                         method: 'POST',
                         headers: {
@@ -99,8 +103,8 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                     });
                 }
 
-                // Insert preprocessing steps
-                for (const prep of recipe.preprocessing) {
+                const preprocessing = Array.isArray(recipe.preprocessing) ? recipe.preprocessing : [];
+                for (const prep of preprocessing) {
                     await fetch('/api/preprocessing', {
                         method: 'POST',
                         headers: {
@@ -114,8 +118,8 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                     });
                 }
 
-                // Insert cooking steps
-                for (const step of recipe.steps) {
+                const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
+                for (const step of steps) {
                     await fetch('/api/step', {
                         method: 'POST',
                         headers: {
@@ -151,7 +155,7 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
             <div className="flex min-h-[800px] items-center justify-center">
                 {recipesDetails.length === 0 && (
                     <div
-                        onClick={rerollRecipes}
+                        onClick={rollRecipes}
                         className={`${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         aria-disabled={isLoading}
                     >
