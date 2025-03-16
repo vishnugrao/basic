@@ -71,10 +71,8 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                 const data = await response.json();
                 const recipe = data.recipe;
 
-                const rid = uuidv4() as UUID;
-
                 newRecipes.push({
-                    id: rid,
+                    id: uuidv4() as UUID,
                     user_id: userDetails.id,
                     recipe_name: `${mealType} - ${recipe.name}`,
                     cuisine: recipe.cuisine,
