@@ -247,6 +247,8 @@ If possible, generate recipes other than: ${existingRecipes.map((value) => value
 While indicating duration in the steps, ensure that the estimate is accurate, or longer than necessary. 
 When cooking meat, ensure the meat is not undercooked to prevent sickness.
 
+When indicating the amounts of Ingredients, only use either grams (g) or milliliters (ml) as metrics.
+
 Please provide the recipe in the following JSON structure:
 {
     "recipe": {

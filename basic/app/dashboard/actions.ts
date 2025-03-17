@@ -72,6 +72,17 @@ export async function getRecipes(user_id: UUID) {
     return data;
 }
 
+export async function getIngredients(user_id: UUID) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('Ingredients').select('*').eq('user_id', user_id)
+
+    if (error) {
+        redirect('/error')
+    }
+
+    return data;
+}
+
 export async function updateUserDetails(userDetails: {
     gender: string;
     height: number;
@@ -147,6 +158,20 @@ export async function updateRecipes(recipeDetails: {
     const supabase = await createClient()
 
     const { error } = await supabase.from('Recipes').update(recipeDetails).eq('user_id', recipeDetails.user_id).eq('recipe_id', recipeDetails.recipe_id);
+
+    if (error) {
+        console.error(error)
+    }
+}
+
+export async function updateIngredients(ingredientDetails: {
+    purchased: boolean,
+    user_id: UUID,
+    recipe_id: UUID
+}) {
+    const supabase = await createClient()
+
+    const { error } = await supabase.from('Ingredients').update(ingredientDetails).eq('user_id', ingredientDetails.user_id).eq('recipe_id', ingredientDetails.recipe_id);
 
     if (error) {
         console.error(error)

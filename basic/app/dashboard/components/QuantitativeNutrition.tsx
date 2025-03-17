@@ -1,15 +1,22 @@
 'use client'
 
-import { Goal, MealPlan, Recipe, User } from "@/types/types";
+import { Goal, Ingredient, MealPlan, Recipe, User } from "@/types/types";
 import { UUID } from "crypto";
-import { useEffect, useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import InlineInput from "./InlineInput";
+import ShoppingList from "./ShoppingList";
 
-export default function QuantitativeNutrition(props: { userDetails: User, goalDetails: Goal, mealPlan: MealPlan, recipesDetails: Recipe[], onUpdateAll: (updates: Recipe[]) => Promise<void>, onAppend: (addition: Recipe) => Promise<void>}) {
+export default function QuantitativeNutrition(props: {
+    userDetails: User, goalDetails: Goal, mealPlan: MealPlan, recipesDetails: Recipe[], ingredientsDetails: Ingredient[], onUpdateAll: (updates: Recipe[]) => Promise<void>, onAppend: (addition: Recipe) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>
+}) {
     const { userDetails } = props;
     const { goalDetails } = props;
     const { mealPlan } = props;
     const { recipesDetails } = props;
+    const { isShoppingListOpen } = props;
+    const { setIsShoppingListOpen } = props;
+    const { onUpdateShoppingList } = props;
+    const { ingredientsDetails } = props;
     const [tdee, setTDEE] = useState(0);
     const [offset, setOffset] = useState(0);
     const [protein, setProtein] = useState(0);
@@ -20,6 +27,15 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
     const dailySnackCalories = 300;
     const [isLoading, setIsLoading] = useState(false);
     const [customCuisine, setCustomCuisine] = useState("...");
+
+    const toggleShoppingList = () => {
+        setIsShoppingListOpen(!isShoppingListOpen);
+    }
+
+    const closeShoppingList = async (ingredients: Ingredient[]) => {
+        setIsShoppingListOpen(false);
+        onUpdateShoppingList(ingredients);
+    }
 
     useEffect(() => {
 
@@ -207,9 +223,11 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                 <div className="flex flex-col gap-4 pt-20">
                     <div className="flex gap-4">
                         <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                            onClick={toggleShoppingList}
                         >
                             <p>&nbsp;Shopping List&nbsp;</p>
                         </div>
+                        {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={ingredientsDetails} />}
                         <div className="flex-auto"></div>
                         <div className="flex w-1/2 gap-4">
                             <div className="flex">
