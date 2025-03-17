@@ -8,10 +8,11 @@ import { redirect } from "next/navigation";
 export async function insertRecipes(recipe: Recipe) {
     const supabase = await createClient()
 
-    const { error } = await supabase.from('Users').insert(recipe);
+    const { error } = await supabase.from('Recipes').upsert(recipe);
 
     if (error) {
-        redirect('/login')
+        // redirect('/error')
+        console.log(error)
     }
 }
 
@@ -153,10 +154,10 @@ export async function updateRecipes(recipeDetails: {
 }
 
 export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {
-    const supabase = await createClient()
-    const { error } = await supabase.from('Recipes').select('*').eq('user_id', user_id).eq('recipe_id', recipe_id);
+    const supabase = await createClient();
+    const { error } = await supabase.from('Recipes').delete().eq('user_id', user_id).eq('id', recipe_id);
 
     if (error) {
-        redirect('/error')
+        redirect('/error');        
     }
 }

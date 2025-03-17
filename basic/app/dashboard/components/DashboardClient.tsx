@@ -74,18 +74,24 @@ export default function DashboardClient({
         await updateMealPlanner(updatedMealPlan);
     };
 
-    const handleRecipesUpdate = async (updates: Recipe[]) => {
-        // compute set difference by id before deleting later
-        for(let i = 0; i < recipesDetails.length; i++){
-            deleteRecipes(recipesDetails[i].user_id, recipesDetails[i].id);
-        }
-        const updatedRecipes: Recipe[] = [];
-        for (let i = 0; i < updates.length; i++) {
-            updatedRecipes.push(updates[i]);
-        }
-        setRecipesDetails(updatedRecipes);
-        for(let i = 0; i < updatedRecipes.length; i) {
-            insertRecipes(updatedRecipes[i]);
+    const handleRecipesAppend = async (addition: Recipe) => {
+        setRecipesDetails(currentRecipes => {
+            const newRecipes = currentRecipes.length === 0 ? [addition] : [...currentRecipes, addition];
+            return newRecipes;
+        });
+    }
+
+    const handleRecipesUpdateAll = async (updates: Recipe[]) => {
+        try {
+            await Promise.all(recipesDetails.map(recipe =>
+                deleteRecipes(recipe.user_id, recipe.id)
+            ));
+            setRecipesDetails(updates);
+            await Promise.all(updates.map(recipe =>
+                insertRecipes(recipe)
+            ));
+        } catch (error) {
+            console.error('Error updating recipes:', error);
         }
     }
 
@@ -127,7 +133,8 @@ export default function DashboardClient({
                     goalDetails={goalDetails}
                     mealPlan={mealPlan}
                     recipesDetails={recipesDetails}
-                    onUpdate={handleRecipesUpdate}
+                    onAppend={handleRecipesAppend}
+                    onUpdateAll={handleRecipesUpdateAll}
                 />
             </div>
         </div>

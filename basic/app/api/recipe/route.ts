@@ -12,16 +12,26 @@ const openai = new OpenAI({
 export async function POST(req: Request) {
     try {
         const supabase = await createClient();
-        const { userDetails, goalDetails, cuisines, existingRecipes} = await req.json();
+        const { 
+            userDetails, 
+            goalDetails, 
+            cuisines, 
+            existingRecipes, 
+            calorieTarget,
+            proteinTarget,
+            fatTarget,
+            cookDate
+        } = await req.json();
         
-        const prompt = constructPrompt(userDetails, goalDetails, cuisines, existingRecipes);
+        const prompt = constructPrompt(userDetails, goalDetails, cuisines, existingRecipes, calorieTarget, proteinTarget, fatTarget);
+        console.log(prompt);
         
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-2024-08-06",
             messages: [
                 {
                     role: "system",
-                    content: "You are a culinary expert and nutritionist. Generate recipes following the provided guidelines and format the output as structured JSON."
+                    content: "You are a culinary expert and nutritionist. Do not use any fancy words, keep the titles clear and concise. Generate recipes following the provided guidelines and format the output as structured JSON."
                 },
                 {
                     role: "user",
@@ -44,7 +54,7 @@ export async function POST(req: Request) {
                 protein: generatedRecipe.recipe.nutritional_info.protein,
                 fat: generatedRecipe.recipe.nutritional_info.fat,
                 calories: generatedRecipe.recipe.nutritional_info.calories,
-                cook_date: new Date().toISOString()
+                cook_date: cookDate
             })
             .select()
             .single();
@@ -118,13 +128,16 @@ export async function POST(req: Request) {
         return NextResponse.json({
             message: 'Recipe and all related data created successfully',
             recipe: {
-                name: recipeData.recipe_name,
-                cuisine: recipeData.cuisine,
-                nutritional_info: {
-                    protein: recipeData.protein,
-                    fat: recipeData.fat,
-                    calories: recipeData.calories
-                }
+                id: recipeData.id,
+                user_id: userDetails.id,
+                recipe_name: recipeData.recipe_name,
+                cook_date: cookDate,
+                cuisine: recipeData.recipe_cuisine,
+                protein: recipeData.protein,
+                fat: recipeData.fat,
+                calories: recipeData.calories,
+                created_at: recipeData.created_at,
+                updated_at: recipeData.updated_at,
             }
         });
     } catch (error) {
@@ -133,25 +146,9 @@ export async function POST(req: Request) {
     }
 }
 
-function constructPrompt(userDetails: User, goalDetails: Goal, cuisines: string[], existingRecipes: Recipe[]) {
-    // const mealCalories = calculateMealCalories()
-    const weeklyCalories = calculateWeeklyCalories(userDetails, goalDetails);
-    const weeklyProtein = calculateWeeklyProtein(userDetails, goalDetails);
-    const weeklyFat = calculateWeeklyFat(weeklyCalories, goalDetails);
-    
-    // Subtract existing recipes' nutritional values
-    let remainingCalories = weeklyCalories;
-    let remainingProtein = weeklyProtein;
-    let remainingFat = weeklyFat;
-    
-    existingRecipes.forEach(recipe => {
-        const recipeDays = getRecipeDays(recipe.recipe_name);
-        remainingCalories -= recipe.calories * recipeDays;
-        remainingProtein -= recipe.protein * recipeDays;
-        remainingFat -= recipe.fat * recipeDays;
-    });
+function constructPrompt(userDetails: User, goalDetails: Goal, cuisines: string[], existingRecipes: Recipe[], calorieTarget: number, proteinTarget: number, fatTarget: number) {
 
-    return `Generate a recipe following these guidelines:
+    return `Generate a nutritious, healthy and tasty recipe following these guidelines:
 
 Plate Construction:
 - 50% vegetables and fruits (no potatoes)
@@ -160,16 +157,95 @@ Plate Construction:
 - Healthy plant oils in moderation
 - Avoid processed foods
 
-Nutritional Targets (Remaining for the week):
-- Calories: ${remainingCalories}
-- Protein: ${remainingProtein}g
-- Fat: ${remainingFat}g
+Nutritional Targets (Make sure the recipe has approximately these macros):
+- Calories: ${calorieTarget}
+- Protein: ${proteinTarget}g
+- Fat: ${fatTarget}g
+
+Allocate the calories towards making the dish nutritious and tasty.
 
 Selected Cuisine: ${cuisines[Math.floor(Math.random() * 4)]}
 Selected Diet: ${goalDetails.diet}
 Selected Lacto-Ovo: ${goalDetails.lacto_ovo}
 
 For preprocessing, the operation should be an action that the preprocessing can be grouped by, and the specific should provide a more specific keyword for the action.
+Keep the operations and specific as consistent as possible because they will be used for grouping as keywords.
+Preprocessing should include all the actions that can take place before starting to cook the meal, that will make the cooking process itself, faster. Preprocessing should also include steps such as marinating and the required duration.
+
+Only pick preprocessing operation and specific pairs from the following exhaustive list:
+
+Washing and Cleaning
+operation: wash, specific: rinse
+operation: wash, specific: scrub
+operation: wash, specific: soak
+operation: wash, specific: brush
+operation: cut, specific: julienne
+operation: cut, specific: brunoise
+operation: cut, specific: dice
+operation: cut, specific: slice
+operation: cut, specific: chiffonade
+operation: cut, specific: batonnet
+operation: cut, specific: mince
+operation: cut, specific: shred
+operation: cut, specific: cube
+
+operation: peel, specific: remove
+operation: peel, specific: score
+operation: trim, specific: fat
+operation: trim, specific: gristle
+operation: trim, specific: de-stem
+operation: trim, specific: de-seed
+operation: trim, specific: core
+
+operation: marinade, specific: submerge-short
+operation: marinade, specific: submerge-long
+operation: marinade, specific: rub
+operation: marinade, specific: brine
+
+operation: soak, specific: water
+operation: soak, specific: brine
+operation: soak, specific: vinegar
+operation: soak, specific: overnight
+operation: soak, specific: rehydrate
+
+operation: blanch, specific: boiling
+operation: blanch, specific: steaming
+operation: blanch, specific: nuts
+
+operation: defrost, specific: refrigerator
+operation: defrost, specific: coldwater
+operation: defrost, specific: microwave
+
+operation: tenderize, specific: pound
+operation: tenderize, specific: enzymatic
+operation: tenderize, specific: score
+
+operation: season, specific: salt
+operation: season, specific: spice-rub
+operation: season, specific: herb-infuse
+
+operation: parboil, specific: brief-boil
+operation: parboil, specific: simmer
+
+operation: devein, specific: remove
+operation: deshell, specific: remove
+
+operation: fillet, specific: debone
+operation: fillet, specific: skin
+
+operation: clean, specific: brush-off
+operation: trim, specific: stem
+
+operation: sift, specific: flour
+operation: cream, specific: butter
+
+operation: rinse, specific: grains
+operation: soak, specific: overnight
+
+If possible, generate recipes other than: ${existingRecipes.map((value) => value.recipe_name + ", ")}.
+
+While indicating duration in the steps, ensure that the estimate is accurate, or longer than necessary. 
+When cooking meat, ensure the meat is not undercooked to prevent sickness.
 
 Please provide the recipe in the following JSON structure:
 {
@@ -206,40 +282,3 @@ Please provide the recipe in the following JSON structure:
     }
 }`;
 }
-
-function calculateWeeklyCalories(user: User, goal: Goal): number {
-    const bmrConstant = user.gender === "Male" ? 5 : -161;
-    const basalMetabolicRate = 10 * user.weight + 6.25 * user.height - 5 * user.age + bmrConstant;
-    const tdee = Math.round(basalMetabolicRate * goal.activity_level / 50) * 50;
-    
-    let dailyCalories = tdee;
-    if (goal.goal === "Bulk") dailyCalories *= 1.15;
-    else if (goal.goal === "Shred") dailyCalories *= 0.8;
-    
-    return dailyCalories * 7;
-}
-
-function calculateWeeklyProtein(user: User, goal: Goal): number {
-    let proteinMultiplier = 1.9;
-    if (goal.goal === "Bulk") proteinMultiplier = 1.8;
-    else if (goal.goal === "Shred") proteinMultiplier = 2.0;
-    
-    const dailyProtein = Math.min(Math.round(proteinMultiplier * user.weight), user.height + 20);
-    return dailyProtein * 7;
-}
-
-function calculateWeeklyFat(weeklyCalories: number, goal: Goal): number {
-    let fatPercentage = 0.225;
-    if (goal.goal === "Bulk") fatPercentage = 0.25;
-    else if (goal.goal === "Shred") fatPercentage = 0.20;
-    
-    return Math.round((fatPercentage * weeklyCalories) / 9);
-}
-
-function getRecipeDays(recipeName: string): number {
-    if (recipeName.includes("Lunch 1")) return 3; // M, T, W
-    if (recipeName.includes("Lunch 2")) return 4; // T, F, S, S
-    if (recipeName.includes("Dinner 1")) return 4; // S, M, T, W
-    if (recipeName.includes("Dinner 2")) return 3; // T, F, S
-    return 0;
-} 
