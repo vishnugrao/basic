@@ -43,6 +43,7 @@ export interface Recipe {
     id: UUID;
     user_id: UUID;
     recipe_name: string;
+    cook_date: Date;
     cuisine: string;
     protein: number;
     fat: number;

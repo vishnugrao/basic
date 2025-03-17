@@ -1,16 +1,22 @@
 'use client'
 
-import { Goal, MealPlan, Recipe, User } from "@/types/types";
+import { Goal, Ingredient, MealPlan, Recipe, User } from "@/types/types";
 import { UUID } from "crypto";
-import { useEffect, useState } from "react";
-import { v4 as uuidv4 } from 'uuid'
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import InlineInput from "./InlineInput";
+import ShoppingList from "./ShoppingList";
 
-export default function QuantitativeNutrition(props: { userDetails: User, goalDetails: Goal, mealPlan: MealPlan, recipesDetails: Recipe[], onUpdate: (updates: Recipe[]) => Promise<void> }) {
+export default function QuantitativeNutrition(props: {
+    userDetails: User, goalDetails: Goal, mealPlan: MealPlan, recipesDetails: Recipe[], ingredientsDetails: Ingredient[], onUpdateAll: (updates: Recipe[]) => Promise<void>, onAppend: (addition: Recipe) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>
+}) {
     const { userDetails } = props;
     const { goalDetails } = props;
     const { mealPlan } = props;
     const { recipesDetails } = props;
+    const { isShoppingListOpen } = props;
+    const { setIsShoppingListOpen } = props;
+    const { onUpdateShoppingList } = props;
+    const { ingredientsDetails } = props;
     const [tdee, setTDEE] = useState(0);
     const [offset, setOffset] = useState(0);
     const [protein, setProtein] = useState(0);
@@ -21,6 +27,19 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
     const dailySnackCalories = 300;
     const [isLoading, setIsLoading] = useState(false);
     const [customCuisine, setCustomCuisine] = useState("...");
+
+    const toggleShoppingList = () => {
+        setIsShoppingListOpen(!isShoppingListOpen);
+    }
+
+    const closeShoppingList = async (ingredients: Ingredient[]) => {
+        setIsShoppingListOpen(false);
+        onUpdateShoppingList(ingredients);
+    }
+
+    useEffect(() => {
+
+    }, [recipesDetails])
     
     useEffect(() =>  {
         const bmrConstant = userDetails.gender == "Male" ? 5 : -161;
@@ -55,16 +74,25 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
     const rollRecipes = async (targetCalories: number, targetProtein: number, targetFat: number) => {
         setIsLoading(true);
         try {
+
+            await props.onUpdateAll([]);
+
             if (!mealPlan?.cuisines) {
                 throw new Error('Meal plan or cuisines not available');
             }
 
             const mealTypes = [
-                [3 * 0.5 * targetCalories, 3 * 0.6 * targetProtein, 3 * 0.5 * targetFat], 
-                [4 * 0.5 * targetCalories, 4 * 0.6 * targetProtein, 4 * 0.5 * targetFat], 
-                [3 * 0.3 * targetCalories, 3 * 0.3 * targetProtein, 3 * 0.3 * targetFat], 
-                [4 * 0.3 * targetCalories, 4 * 0.3 * targetProtein, 4 * 0.3 * targetFat]];
-            const newRecipes: Recipe[] = [];
+                // Sunday cook - Lunch M,T,W
+                [Math.round(3 * 0.5 * targetCalories), Math.round(3 * 0.6 * targetProtein), Math.round(3 * 0.5 * targetFat), new Date(new Date().setDate(new Date().getDate() + 1))], 
+                // Sunday cook - Dinner S,M,T,W
+                [Math.round(4 * 0.5 * targetCalories), Math.round(4 * 0.6 * targetProtein), Math.round(4 * 0.5 * targetFat), new Date(new Date().setDate(new Date().getDate() + 1))], 
+                // Wednesday cook - Lunch T,F,S,S
+                [Math.round(3 * 0.3 * targetCalories), Math.round(3 * 0.3 * targetProtein), Math.round(3 * 0.3 * targetFat), new Date(new Date().setDate(new Date().getDate() + 4))], 
+                // Thursday cook - Dinner T,F,S
+                [Math.round(4 * 0.3 * targetCalories), Math.round(4 * 0.3 * targetProtein), Math.round(4 * 0.3 * targetFat), new Date(new Date().setDate(new Date().getDate() + 5))]
+            ];
+
+            const existingRecipeNames: string[] = [];
 
             for (const mealType of mealTypes) {
                 const response = await fetch('/api/recipe', {
@@ -76,10 +104,11 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                         userDetails,
                         goalDetails,
                         cuisines: mealPlan.cuisines,
-                        existingRecipes: newRecipes,
-                        calorieTarget: targetCalories,
-                        proteinTarget: targetProtein,
-                        fatTarget: targetFat,
+                        existingRecipes: existingRecipeNames,
+                        calorieTarget: mealType[0],
+                        proteinTarget: mealType[1],
+                        fatTarget: mealType[2],
+                        cookDate: mealType[3],
                     }),
                 });
 
@@ -94,17 +123,8 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                     throw new Error('Invalid recipe data received');
                 }
 
-                newRecipes.push({
-                    id: uuidv4() as UUID,
-                    user_id: userDetails.id,
-                    recipe_name: `${mealType} - ${recipe.name}`,
-                    cuisine: recipe.cuisine,
-                    protein: recipe.nutritional_info.protein,
-                    fat: recipe.nutritional_info.fat,
-                    calories: recipe.nutritional_info.calories,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                });
+                const rid: UUID = recipe.id;
+                existingRecipeNames.push(recipe.recipe_name);
 
                 const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
                 for (const ingredient of ingredients) {
@@ -115,7 +135,7 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                         },
                         body: JSON.stringify({
                             user_id: userDetails.id,
-                            recipe_id: newRecipes[newRecipes.length - 1].id,
+                            recipe_id: rid,
                             ...ingredient,
                             purchased: false,
                         }),
@@ -131,7 +151,7 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                         },
                         body: JSON.stringify({
                             user_id: userDetails.id,
-                            recipe_id: newRecipes[newRecipes.length - 1].id,
+                            recipe_id: rid,
                             ...prep,
                         }),
                     });
@@ -146,14 +166,14 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                         },
                         body: JSON.stringify({
                             user_id: userDetails.id,
-                            recipe_id: newRecipes[newRecipes.length - 1].id,
+                            recipe_id: rid,
                             ...step,
                         }),
                     });
                 }
-            }
 
-            await props.onUpdate(newRecipes);
+                await props.onAppend(recipe);
+            }
             console.log('Successfully generated new meal plan!');
         } catch (error) {
             console.error(error instanceof Error ? error.message : 'Failed to generate meal plan');
@@ -203,9 +223,11 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                 <div className="flex flex-col gap-4 pt-20">
                     <div className="flex gap-4">
                         <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                            onClick={toggleShoppingList}
                         >
                             <p>&nbsp;Shopping List&nbsp;</p>
                         </div>
+                        {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={ingredientsDetails} />}
                         <div className="flex-auto"></div>
                         <div className="flex w-1/2 gap-4">
                             <div className="flex">

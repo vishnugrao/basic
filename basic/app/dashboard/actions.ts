@@ -8,10 +8,11 @@ import { redirect } from "next/navigation";
 export async function insertRecipes(recipe: Recipe) {
     const supabase = await createClient()
 
-    const { error } = await supabase.from('Users').insert(recipe);
+    const { error } = await supabase.from('Recipes').upsert(recipe);
 
     if (error) {
-        redirect('/login')
+        // redirect('/error')
+        console.log(error)
     }
 }
 
@@ -63,6 +64,17 @@ export async function getSearchSet(user_id: UUID) {
 export async function getRecipes(user_id: UUID) {
     const supabase = await createClient()
     const { data, error } = await supabase.from('Recipes').select('*').eq('user_id', user_id)
+
+    if (error) {
+        redirect('/error')
+    }
+
+    return data;
+}
+
+export async function getIngredients(user_id: UUID) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('Ingredients').select('*').eq('user_id', user_id)
 
     if (error) {
         redirect('/error')
@@ -152,11 +164,25 @@ export async function updateRecipes(recipeDetails: {
     }
 }
 
-export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {
+export async function updateIngredients(ingredientDetails: {
+    purchased: boolean,
+    user_id: UUID,
+    recipe_id: UUID
+}) {
     const supabase = await createClient()
-    const { error } = await supabase.from('Recipes').select('*').eq('user_id', user_id).eq('recipe_id', recipe_id);
+
+    const { error } = await supabase.from('Ingredients').update(ingredientDetails).eq('user_id', ingredientDetails.user_id).eq('recipe_id', ingredientDetails.recipe_id);
 
     if (error) {
-        redirect('/error')
+        console.error(error)
+    }
+}
+
+export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {
+    const supabase = await createClient();
+    const { error } = await supabase.from('Recipes').delete().eq('user_id', user_id).eq('id', recipe_id);
+
+    if (error) {
+        redirect('/error');        
     }
 }

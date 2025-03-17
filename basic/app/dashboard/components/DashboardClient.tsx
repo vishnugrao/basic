@@ -5,8 +5,8 @@ import UserDetails from "./UserDetails";
 import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
-import { User, Goal, MealPlan, SearchSet, Recipe } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes } from "../actions";
+import { User, Goal, MealPlan, SearchSet, Recipe, Ingredient } from "@/types/types";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateIngredients } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -14,12 +14,14 @@ export default function DashboardClient({
     initialMealPlan,
     searchSet,
     initialRecipesDetails,
+    initialIngredientDetails
 }: {
     initialUserDetails: User,
     initialGoalDetails: Goal,
     initialMealPlan: MealPlan,
     searchSet: SearchSet,
     initialRecipesDetails: Recipe[],
+    initialIngredientDetails: Ingredient[]
 }) {
     
     const [userDetails, setUserDetails] = useState<User>(initialUserDetails);
@@ -42,6 +44,9 @@ export default function DashboardClient({
     const [isCuisineSearchOpen, setIsCuisineSearchOpen] = useState(false);
 
     const [recipesDetails, setRecipesDetails] = useState<Recipe[]>(initialRecipesDetails);
+    const [ingredientsDetails, setIngredientsDetails] = useState<Ingredient[]>(initialIngredientDetails);
+
+    const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
 
     const handleUserUpdate = async (updates: Partial<User>) => {
         const updatedUser = { ...userDetails, ...updates, updated_at: new Date().toISOString() };
@@ -74,20 +79,37 @@ export default function DashboardClient({
         await updateMealPlanner(updatedMealPlan);
     };
 
-    const handleRecipesUpdate = async (updates: Recipe[]) => {
-        // compute set difference by id before deleting later
-        for(let i = 0; i < recipesDetails.length; i++){
-            deleteRecipes(recipesDetails[i].user_id, recipesDetails[i].id);
-        }
-        const updatedRecipes: Recipe[] = [];
-        for (let i = 0; i < updates.length; i++) {
-            updatedRecipes.push(updates[i]);
-        }
-        setRecipesDetails(updatedRecipes);
-        for(let i = 0; i < updatedRecipes.length; i) {
-            insertRecipes(updatedRecipes[i]);
+    const handleRecipesAppend = async (addition: Recipe) => {
+        setRecipesDetails(currentRecipes => {
+            const newRecipes = currentRecipes.length === 0 ? [addition] : [...currentRecipes, addition];
+            return newRecipes;
+        });
+    }
+
+    const handleRecipesUpdateAll = async (updates: Recipe[]) => {
+        try {
+            await Promise.all(recipesDetails.map(recipe =>
+                deleteRecipes(recipe.user_id, recipe.id)
+            ));
+            setRecipesDetails(updates);
+            await Promise.all(updates.map(recipe =>
+                insertRecipes(recipe)
+            ));
+        } catch (error) {
+            console.error('Error updating recipes:', error);
         }
     }
+
+    const handleIngredientsUpdate = async (updates: Ingredient[]) => {
+        for (let i = 0; i < updates.length; i++) {
+            updateIngredients({
+                purchased: updates[i].purchased,
+                user_id: updates[i].user_id,
+                recipe_id: updates[i].recipe_id
+            })
+        }
+        setIngredientsDetails(updates)
+    };
 
     return (
         <div className="flex flex-col">
@@ -127,7 +149,12 @@ export default function DashboardClient({
                     goalDetails={goalDetails}
                     mealPlan={mealPlan}
                     recipesDetails={recipesDetails}
-                    onUpdate={handleRecipesUpdate}
+                    ingredientsDetails={ingredientsDetails}
+                    onAppend={handleRecipesAppend}
+                    onUpdateAll={handleRecipesUpdateAll}
+                    isShoppingListOpen={isShoppingListOpen}
+                    setIsShoppingListOpen={setIsShoppingListOpen}
+                    onUpdateShoppingList={handleIngredientsUpdate}
                 />
             </div>
         </div>
