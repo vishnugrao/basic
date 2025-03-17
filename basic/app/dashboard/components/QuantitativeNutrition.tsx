@@ -4,6 +4,7 @@ import { Goal, MealPlan, Recipe, User } from "@/types/types";
 import { UUID } from "crypto";
 import { useEffect, useState } from "react";
 import { v4 as uuidv4 } from 'uuid'
+import InlineInput from "./InlineInput";
 
 export default function QuantitativeNutrition(props: { userDetails: User, goalDetails: Goal, mealPlan: MealPlan, recipesDetails: Recipe[], onUpdate: (updates: Recipe[]) => Promise<void> }) {
     const { userDetails } = props;
@@ -14,7 +15,12 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
     const [offset, setOffset] = useState(0);
     const [protein, setProtein] = useState(0);
     const [fat, setFat] = useState(0);
+    const [dailyBreakfastCalories, setDailyBreakfastCalories] = useState(0);
+    const [dailyBreakfastProtein, setDailyBreakfastProtein] = useState(0);
+    const [dailyBreakfastFat, setDailyBreakfastFat] = useState(0);
+    const dailySnackCalories = 300;
     const [isLoading, setIsLoading] = useState(false);
+    const [customCuisine, setCustomCuisine] = useState("...");
     
     useEffect(() =>  {
         const bmrConstant = userDetails.gender == "Male" ? 5 : -161;
@@ -40,14 +46,24 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
         }
     }, [goalDetails.goal, tdee, userDetails.weight, offset, userDetails.height])
 
-    const rollRecipes = async () => {
+    useEffect(() => {
+        setDailyBreakfastCalories(Math.round(0.2 * (tdee + offset - dailySnackCalories)));
+        setDailyBreakfastProtein(Math.round(0.1 * (protein)));
+        setDailyBreakfastFat(Math.round(0.2 * (fat)));
+    }, [tdee, offset, protein, fat])
+
+    const rollRecipes = async (targetCalories: number, targetProtein: number, targetFat: number) => {
         setIsLoading(true);
         try {
             if (!mealPlan?.cuisines) {
                 throw new Error('Meal plan or cuisines not available');
             }
 
-            const mealTypes = ["Lunch 1", "Lunch 2", "Dinner 1", "Dinner 2"];
+            const mealTypes = [
+                [3 * 0.5 * targetCalories, 3 * 0.6 * targetProtein, 3 * 0.5 * targetFat], 
+                [4 * 0.5 * targetCalories, 4 * 0.6 * targetProtein, 4 * 0.5 * targetFat], 
+                [3 * 0.3 * targetCalories, 3 * 0.3 * targetProtein, 3 * 0.3 * targetFat], 
+                [4 * 0.3 * targetCalories, 4 * 0.3 * targetProtein, 4 * 0.3 * targetFat]];
             const newRecipes: Recipe[] = [];
 
             for (const mealType of mealTypes) {
@@ -60,7 +76,10 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                         userDetails,
                         goalDetails,
                         cuisines: mealPlan.cuisines,
-                        existingRecipes: newRecipes
+                        existingRecipes: newRecipes,
+                        calorieTarget: targetCalories,
+                        proteinTarget: targetProtein,
+                        fatTarget: targetFat,
                     }),
                 });
 
@@ -146,16 +165,31 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
 
     return (
         <>
-            <div className="flex w-1/3 flex-col gap-4">
-                <p className="text-2xl">Total Daily Energy Expenditure (TDEE):&nbsp;{tdee}</p>
-                <p className="text-2xl">Daily Target:&nbsp;{tdee + offset}</p>
-                <p className="text-2xl">Protein Target:&nbsp;{protein}g</p>
-                <p className="text-2xl">Fat Target:&nbsp;{fat}g</p>
-            </div>
-            <div className="flex min-h-[800px] items-center justify-center">
-                {recipesDetails.length === 0 && (
+            <div className="flex">
+                <div className="flex w-1/3 flex-col gap-4">
+                    <p className="text-2xl">Total Daily Energy Expenditure (TDEE):&nbsp;{tdee}</p>
+                    <p className="text-2xl">Daily Target:&nbsp;{tdee + offset}</p>
+                    <p className="text-2xl">Protein Target:&nbsp;{protein}g</p>
+                    <p className="text-2xl">Fat Target:&nbsp;{fat}g</p>
+                </div>
+                <div className="flex-auto"></div>
+                <div className="flex w-1/3 flex-col gap-4">
+                    <p className="text-2xl">Daily Snack :D :&nbsp;{dailySnackCalories}</p>
+                    <p className="text-2xl">Daily Breakfast Calories:&nbsp;{dailyBreakfastCalories}</p>
+                    <p className="text-2xl">Daily Breakfast Protein:&nbsp;{dailyBreakfastProtein}g</p>
+                    <p className="text-2xl">Daily Breakfast Fat:&nbsp;{dailyBreakfastFat}g</p>
+                </div>
+                <div className="flex-auto"></div>
+            </div>    
+            {recipesDetails.length === 0 && (
+                <div className="flex min-h-[800px] items-center justify-center">
                     <div
-                        onClick={rollRecipes}
+                        onClick={() => {
+                            rollRecipes(
+                                tdee + offset - dailySnackCalories - dailyBreakfastCalories,
+                                protein - dailyBreakfastProtein,
+                                fat - dailyBreakfastFat)
+                        }}
                         className={`${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                         aria-disabled={isLoading}
                     >
@@ -163,8 +197,50 @@ export default function QuantitativeNutrition(props: { userDetails: User, goalDe
                             &nbsp;{isLoading ? 'Generating meal plan...' : 'Generate a meal plan!'}&nbsp;
                         </p>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
+            {recipesDetails.length > 0 && (
+                <div className="flex flex-col gap-4 pt-20">
+                    <div className="flex gap-4">
+                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                        >
+                            <p>&nbsp;Shopping List&nbsp;</p>
+                        </div>
+                        <div className="flex-auto"></div>
+                        <div className="flex w-1/2 gap-4">
+                            <div className="flex">
+                                <p className="text-2xl">Cuisine (Selected):&nbsp;</p>
+                                <div className="flex items-baseline text-2xl">
+                                    <InlineInput
+                                        text={String(customCuisine)}
+                                        onSetText={(text: string) => { setCustomCuisine(text)}}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex-auto"></div>
+                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit">
+                                <p>&nbsp;Re-roll Selected&nbsp;</p>
+                            </div>
+                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                                onClick={() => { rollRecipes(
+                                    tdee + offset - dailySnackCalories - dailyBreakfastCalories, 
+                                    protein - dailyBreakfastProtein, 
+                                    fat - dailyBreakfastFat) 
+                                }}
+                            >
+                                <p>&nbsp;Re-roll All&nbsp;</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex flex-col gap-4">
+                        {recipesDetails.map((recipe, index) => (
+                            <div key={index}>
+                                <p className="text-2xl">{recipe.recipe_name}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </>
     );
 }

@@ -12,7 +12,7 @@ const openai = new OpenAI({
 export async function POST(req: Request) {
     try {
         const supabase = await createClient();
-        const { userDetails, goalDetails, cuisines, existingRecipes } = await req.json();
+        const { userDetails, goalDetails, cuisines, existingRecipes} = await req.json();
         
         const prompt = constructPrompt(userDetails, goalDetails, cuisines, existingRecipes);
         
@@ -134,6 +134,7 @@ export async function POST(req: Request) {
 }
 
 function constructPrompt(userDetails: User, goalDetails: Goal, cuisines: string[], existingRecipes: Recipe[]) {
+    // const mealCalories = calculateMealCalories()
     const weeklyCalories = calculateWeeklyCalories(userDetails, goalDetails);
     const weeklyProtein = calculateWeeklyProtein(userDetails, goalDetails);
     const weeklyFat = calculateWeeklyFat(weeklyCalories, goalDetails);
