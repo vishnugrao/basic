@@ -101,15 +101,20 @@ export default function DashboardClient({
     }
 
     const handleIngredientsUpdate = async (updates: Ingredient[]) => {
-        for (let i = 0; i < updates.length; i++) {
-            updateIngredients({
-                purchased: updates[i].purchased,
-                user_id: updates[i].user_id,
-                recipe_id: updates[i].recipe_id
-            })
+        try {
+            await Promise.all(updates.map(ingredient =>
+                updateIngredients({
+                    purchased: ingredient.purchased,
+                    user_id: ingredient.user_id,
+                    recipe_id: ingredient.recipe_id,
+                    updated_at: new Date().toISOString()
+                })
+            ));
+            setIngredientsDetails(updates);
+        } catch (error) {
+            console.error('Error updating ingredients:', error);
         }
-        setIngredientsDetails(updates)
-    };
+    }; 
 
     return (
         <div className="flex flex-col">
