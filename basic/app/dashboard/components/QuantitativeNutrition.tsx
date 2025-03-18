@@ -34,7 +34,7 @@ export default function QuantitativeNutrition(props: {
 
     const closeShoppingList = async (ingredients: Ingredient[]) => {
         setIsShoppingListOpen(false);
-        onUpdateShoppingList(ingredients);
+        await onUpdateShoppingList(ingredients);
     }
 
     useEffect(() => {

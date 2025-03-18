@@ -61,8 +61,8 @@ export default function ShoppingList(props: { closeShoppingList: (ingredients: I
     return (
         <>
             <div className="popup-container"
-                onClick={() => {
-                    closeShoppingList(shoppingList);
+                onClick={async () => {
+                    await closeShoppingList(shoppingList);
                 }}
             >
                 <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup p-10 max-h-[1200px] max-w-[1000px] overflow-scroll scrollbar-hide"

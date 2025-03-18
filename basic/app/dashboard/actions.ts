@@ -153,7 +153,8 @@ export async function updateRecipes(recipeDetails: {
     protein: number,
     fat: number, 
     user_id: UUID,
-    recipe_id: UUID
+    recipe_id: UUID,
+    updated_at: string
 }) {
     const supabase = await createClient()
 
@@ -167,7 +168,8 @@ export async function updateRecipes(recipeDetails: {
 export async function updateIngredients(ingredientDetails: {
     purchased: boolean,
     user_id: UUID,
-    recipe_id: UUID
+    recipe_id: UUID, 
+    updated_at: string
 }) {
     const supabase = await createClient()
 
