@@ -20,6 +20,7 @@ export default function ShoppingList(props: { closeShoppingList: (ingredients: I
 
     useEffect(() => {
         // Aggregate ingredients with same name and sum their quantities
+        // TODO: Fix aggregation
         const aggregated = shoppingList.reduce((acc: AggregatedIngredient[], curr) => {
             const existing = acc.find(item => item.name.toLowerCase() === curr.name.toLowerCase());
             if (existing) {
