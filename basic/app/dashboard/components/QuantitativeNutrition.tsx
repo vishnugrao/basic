@@ -33,8 +33,10 @@ export default function QuantitativeNutrition(props: {
     }
 
     const closeShoppingList = async (ingredients: Ingredient[]) => {
+        console.log('closeShoppingList called with:', ingredients);
         setIsShoppingListOpen(false);
         await onUpdateShoppingList(ingredients);
+        console.log('onUpdateShoppingList completed');
     }
 
     useEffect(() => {
@@ -244,10 +246,13 @@ export default function QuantitativeNutrition(props: {
                                 <p>&nbsp;Re-roll Selected&nbsp;</p>
                             </div>
                             <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
-                                onClick={() => { rollRecipes(
-                                    tdee + offset - dailySnackCalories - dailyBreakfastCalories, 
-                                    protein - dailyBreakfastProtein, 
-                                    fat - dailyBreakfastFat) 
+                                onClick={() => {
+                                    console.log('Re-rolling all recipes');
+                                    rollRecipes(
+                                        tdee + offset - dailySnackCalories - dailyBreakfastCalories, 
+                                        protein - dailyBreakfastProtein, 
+                                        fat - dailyBreakfastFat);
+                                    // setIsShoppingListOpen(true);
                                 }}
                             >
                                 <p>&nbsp;Re-roll All&nbsp;</p>

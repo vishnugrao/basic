@@ -180,6 +180,51 @@ export async function updateIngredients(ingredientDetails: {
     }
 }
 
+export async function updateIngredientsById(ingredientDetails: {
+    purchased: boolean,
+    user_id: UUID,
+    id: UUID, 
+    updated_at: string
+}) {
+    const supabase = await createClient()
+
+    const { error } = await supabase.from('Ingredients').update(ingredientDetails).eq('user_id', ingredientDetails.user_id).eq('id', ingredientDetails.id);
+
+    if (error) {
+        console.error(error)
+    }
+}
+
+export async function updateMultipleIngredients(ingredients: Array<{
+    purchased: boolean,
+    user_id: UUID,
+    id: UUID, 
+    updated_at: string
+}>) {
+    console.log('updateMultipleIngredients called with:', ingredients);
+    const supabase = await createClient()
+
+    // Update each ingredient individually since we only need to update the purchased field
+    for (const ingredient of ingredients) {
+        console.log('Updating ingredient:', ingredient);
+        const { error } = await supabase
+            .from('Ingredients')
+            .update({
+                purchased: ingredient.purchased,
+                updated_at: ingredient.updated_at
+            })
+            .eq('id', ingredient.id)
+            .eq('user_id', ingredient.user_id);
+
+        if (error) {
+            console.log('Error updating ingredient:', error);
+        } else {
+            console.log('Successfully updated ingredient:', ingredient.id);
+        }
+    }
+    console.log('updateMultipleIngredients completed');
+}
+
 export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {
     const supabase = await createClient();
     const { error } = await supabase.from('Recipes').delete().eq('user_id', user_id).eq('id', recipe_id);

@@ -10,6 +10,7 @@ interface AggregatedIngredient extends Omit<Ingredient, 'id' | 'recipe_id'> {
     recipe_ids: UUID[];
 }
 
+
 export default function ShoppingList(props: { closeShoppingList: (ingredients: Ingredient[]) => void, ingredients: Ingredient[] }) {
     const { closeShoppingList, ingredients } = props;
     
@@ -20,7 +21,6 @@ export default function ShoppingList(props: { closeShoppingList: (ingredients: I
 
     useEffect(() => {
         // Aggregate ingredients with same name and sum their quantities
-        // TODO: Fix aggregation
         const aggregated = shoppingList.reduce((acc: AggregatedIngredient[], curr) => {
             const existing = acc.find(item => item.name.toLowerCase() === curr.name.toLowerCase());
             if (existing) {
@@ -57,6 +57,14 @@ export default function ShoppingList(props: { closeShoppingList: (ingredients: I
             return item;
         });
         setShoppingList(updatedList);
+        setAggregatedList(aggregatedList.map(item => {
+            for (const id of ingredient.ids) {
+                if (item.ids.includes(id)) {
+                    return { ...item, purchased: newPurchased };
+                }
+            }
+            return item;
+        }));
     };
 
     return (

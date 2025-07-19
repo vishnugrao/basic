@@ -6,7 +6,7 @@ import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, Ingredient } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateIngredients } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -102,15 +102,15 @@ export default function DashboardClient({
 
     const handleIngredientsUpdate = async (updates: Ingredient[]) => {
         try {
-            await Promise.all(updates.map(ingredient =>
-                updateIngredients({
-                    purchased: ingredient.purchased,
-                    user_id: ingredient.user_id,
-                    recipe_id: ingredient.recipe_id,
-                    updated_at: new Date().toISOString()
-                })
-            ));
+            console.log('handleIngredientsUpdate called with:', updates);
+            await updateMultipleIngredients(updates.map(ingredient => ({
+                purchased: ingredient.purchased,
+                user_id: ingredient.user_id,
+                id: ingredient.id,
+                updated_at: new Date().toISOString()
+            })));
             setIngredientsDetails(updates);
+            console.log('Database update completed successfully');
         } catch (error) {
             console.error('Error updating ingredients:', error);
         }
