@@ -1,14 +1,24 @@
 "use client"
 
 import { login, signup } from "./actions"
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import Script from "next/script"
 import Image from "next/image"
 
 export default function LoginPage() {
-    const [isLoading] = useState(false)
+    const [isPending, startTransition] = useTransition()
     const [isSignUp, setIsSignUp] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+
+    const handleSubmit = (formData: FormData) => {
+        startTransition(async () => {
+            if (isSignUp) {
+                await signup(formData)
+            } else {
+                await login(formData)
+            }
+        })
+    }
 
     return (
         <>
@@ -35,8 +45,19 @@ export default function LoginPage() {
                             </p>
                         </div>
 
-                        <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-10">
-                            <form className="space-y-6">
+                        <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-10 relative">
+                            {isPending && (
+                                <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-2xl flex items-center justify-center z-10">
+                                    <div className="flex flex-col items-center space-y-4">
+                                        <div className="w-8 h-8 border-2 border-gray-200 border-t-[#B1454A] rounded-full animate-spin"></div>
+                                        <p className="text-gray-600 text-sm font-medium">
+                                            {isSignUp ? 'Creating account...' : 'Signing in...'}
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            <form className="space-y-6" action={handleSubmit}>
                                 {isSignUp && (
                                     <div>
                                         <label
@@ -50,7 +71,7 @@ export default function LoginPage() {
                                             name="name"
                                             type="name"
                                             required
-                                            disabled={isLoading}
+                                            disabled={isPending}
                                             placeholder="Vishnu Rao"
                                             className="w-full px-4 py-4 text-lg text-gray-900 border border-gray-200 
                                                     rounded-xl focus:outline-none focus:ring-2 
@@ -74,7 +95,7 @@ export default function LoginPage() {
                                         name="email"
                                         type="email"
                                         required
-                                        disabled={isLoading}
+                                        disabled={isPending}
                                         placeholder="you@example.com"
                                         className="w-full px-4 py-4 text-lg text-gray-900 border border-gray-200 
                                                 rounded-xl focus:outline-none focus:ring-2 
@@ -98,7 +119,7 @@ export default function LoginPage() {
                                             name="password"
                                             type={showPassword ? "text" : "password"}
                                             required
-                                            disabled={isLoading}
+                                            disabled={isPending}
                                             className="w-full px-4 py-4 text-lg text-gray-900 border border-gray-200 
                                                     rounded-xl focus:outline-none focus:ring-2 
                                                     focus:ring-[#B1454A] focus:ring-opacity-20 
@@ -111,7 +132,7 @@ export default function LoginPage() {
                                             className="absolute right-3 top-1/2 transform -translate-y-1/2 
                                                     text-gray-500 hover:text-gray-700 transition-colors
                                                     disabled:opacity-50 disabled:cursor-not-allowed"
-                                            disabled={isLoading}
+                                            disabled={isPending}
                                         >
                                             {showPassword ? "Hide" : "Show"}
                                         </button>
@@ -131,8 +152,7 @@ export default function LoginPage() {
 
                                 <button
                                     type="submit"
-                                    formAction={isSignUp ? signup : login}
-                                    disabled={isLoading}
+                                    disabled={isPending}
                                     className="w-full px-4 py-4 text-lg font-medium text-white 
                                             bg-[#B1454A] rounded-xl hover:bg-[#9A3C40] 
                                             focus:outline-none focus:ring-2 focus:ring-offset-2 
