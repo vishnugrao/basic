@@ -108,7 +108,6 @@ export default function DashboardClient({
 
     const handleIngredientsUpdate = async (updates: Ingredient[]) => {
         try {
-            console.log('handleIngredientsUpdate called with:', updates);
             await updateMultipleIngredients(updates.map(ingredient => ({
                 purchased: ingredient.purchased,
                 user_id: ingredient.user_id,
@@ -124,12 +123,10 @@ export default function DashboardClient({
 
     const handlePreprocessingUpdate = async (updates: Preprocessing[]) => {
         setPreprocessingDetails(updates);
-        console.log('handlePreprocessingUpdate called with:', updates);
     }
 
     const handleStepsUpdate = async (updates: Step[]) => {
         setStepsDetails(updates);
-        console.log('handleStepsUpdate called with:', updates);
     }
 
     return (

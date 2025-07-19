@@ -225,8 +225,8 @@ export async function updateMultipleIngredients(ingredients: Array<{
 }>) {
     const supabase = await createClient()
 
-    // Update each ingredient individually since we only need to update the purchased field
-    for (const ingredient of ingredients) {
+    // Update all ingredients concurrently for better performance
+    const updatePromises = ingredients.map(async (ingredient) => {
         const { error } = await supabase
             .from('Ingredients')
             .update({
@@ -239,8 +239,17 @@ export async function updateMultipleIngredients(ingredients: Array<{
         if (error) {
             console.log('Error updating ingredient:', error);
         }
+        return { success: !error, error };
+    });
+
+    const results = await Promise.all(updatePromises);
+    const errors = results.filter(result => !result.success);
+    
+    if (errors.length > 0) {
+        console.log(`Completed with ${errors.length} errors out of ${ingredients.length} ingredients`);
+    } else {
+        console.log('updateMultipleIngredients completed successfully');
     }
-    console.log('updateMultipleIngredients completed');
 }
 
 export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {

@@ -63,10 +63,8 @@ export default function QuantitativeNutrition(props: {
     }
 
     const closeShoppingList = async (ingredients: Ingredient[]) => {
-        console.log('closeShoppingList called with:', ingredients);
         setIsShoppingListOpen(false);
         await onUpdateShoppingList(ingredients);
-        console.log('onUpdateShoppingList completed');
     }
 
     const togglePreprocessing = () => {
@@ -74,7 +72,6 @@ export default function QuantitativeNutrition(props: {
     }
 
     const closePreprocessingList = async (preprocessing: Preprocessing[]) => {
-        console.log('closePreprocessingList called with:', preprocessing);
         setIsPreprocessingOpen(false);
         await onUpdatePreprocessing(preprocessing);
         console.log('onUpdatePreprocessing completed');
