@@ -24,7 +24,7 @@ export async function POST(req: Request) {
         } = await req.json();
         
         const prompt = constructPrompt(userDetails, goalDetails, cuisines, existingRecipes, calorieTarget, proteinTarget, fatTarget);
-        console.log(prompt);
+        console.log(prompt.slice(0, 200));
         
         const completion = await openai.chat.completions.create({
             model: "gpt-4o-2024-08-06",

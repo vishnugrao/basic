@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
         if (error) throw error;
         
-        return NextResponse.json({ message: 'Preprocessing step created successfully' });
+        return NextResponse.json({ message: 'Preprocessing step created successfully', preprocessing: preprocessing });
     } catch (error) {
         console.error('Error creating preprocessing step:', error);
         return NextResponse.json({ error: 'Failed to create preprocessing step' }, { status: 500 });

@@ -8,6 +8,28 @@ import ShoppingList from "./ShoppingList";
 import PreprocessingList from "./PreprocessingList";
 import RecipeDisplay from "./RecipeDisplay";
 
+// Placeholder component for loading recipes
+const RecipePlaceholder = ({ index }: { index: number }) => (
+    <div className="relative border-2 border-gray-200 rounded-xl p-6 bg-white">
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-10">
+            <div className="flex flex-col items-center space-y-4">
+                <div className="w-8 h-8 border-2 border-gray-200 border-t-[#B1454A] rounded-full animate-spin"></div>
+                <p className="text-gray-600 text-sm font-medium">
+                    Generating recipe {index + 1}...
+                </p>
+            </div>
+        </div>
+        <div className="opacity-50">
+            <h3 className="text-xl font-semibold mb-4">Recipe Placeholder</h3>
+            <div className="space-y-3">
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+            </div>
+        </div>
+    </div>
+);
+
 export default function QuantitativeNutrition(props: {
     userDetails: User,
     goalDetails: Goal, 
@@ -34,6 +56,7 @@ export default function QuantitativeNutrition(props: {
     const [isLoading, setIsLoading] = useState(false);
     const [customCuisine, setCustomCuisine] = useState("...");
     const [isPreprocessingOpen, setIsPreprocessingOpen] = useState(false);
+    const [loadingRecipes, setLoadingRecipes] = useState<boolean[]>([false, false, false, false]);
 
     const toggleShoppingList = () => {
         setIsShoppingListOpen(!isShoppingListOpen);
@@ -58,8 +81,7 @@ export default function QuantitativeNutrition(props: {
     }
 
     useEffect(() => {
-
-    }, [recipesDetails])
+    }, [recipesDetails, stepsDetails, preprocessingDetails, ingredientsDetails])
     
     useEffect(() =>  {
         const bmrConstant = userDetails.gender == "Male" ? 5 : -161;
@@ -91,17 +113,115 @@ export default function QuantitativeNutrition(props: {
         setDailyBreakfastFat(Math.round(0.2 * (fat)));
     }, [tdee, offset, protein, fat])
 
+    const generateSingleRecipe = async (
+        index: number,
+        targetCalories: number, 
+        targetProtein: number, 
+        targetFat: number, 
+        cookDate: Date,
+        existingRecipeNames: string[]
+    ) => {
+        try {
+            const response = await fetch('/api/recipe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userDetails,
+                    goalDetails,
+                    cuisines: mealPlan.cuisines,
+                    existingRecipes: existingRecipeNames,
+                    calorieTarget: targetCalories,
+                    proteinTarget: targetProtein,
+                    fatTarget: targetFat,
+                    cookDate: cookDate,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to generate recipe');
+            }
+
+            const data = await response.json();
+            const recipe = data.recipe;
+
+            if (!recipe || typeof recipe !== 'object') {
+                throw new Error('Invalid recipe data received');
+            }
+
+            const rid: UUID = recipe.id;
+            existingRecipeNames.push(recipe.recipe_name);
+
+            // Generate ingredients
+            const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
+            for (const ingredient of ingredients) {
+                await fetch('/api/ingredient', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userDetails.id,
+                        recipe_id: rid,
+                        ...ingredient,
+                        purchased: false,
+                    }),
+                });
+            }
+
+            // Generate preprocessing
+            const preprocessing = Array.isArray(recipe.preprocessing) ? recipe.preprocessing : [];
+            for (const prep of preprocessing) {
+                await fetch('/api/preprocessing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userDetails.id,
+                        recipe_id: rid,
+                        ...prep,
+                    }),
+                });
+            }
+
+            // Generate steps
+            const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
+            for (const step of steps) {
+                await fetch('/api/step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        user_id: userDetails.id,
+                        recipe_id: rid,
+                        ...step,
+                    }),
+                });
+            }
+
+            await props.onAppend(recipe);
+            return recipe;
+        } catch (error) {
+            console.error(`Error generating recipe ${index + 1}:`, error);
+            throw error;
+        }
+    };
+
     const rollRecipes = async (targetCalories: number, targetProtein: number, targetFat: number) => {
         setIsLoading(true);
+        setLoadingRecipes([true, true, true, true]);
+        
         try {
-
             await props.onUpdateAll([]);
 
             if (!mealPlan?.cuisines) {
                 throw new Error('Meal plan or cuisines not available');
             }
 
-            const mealTypes = [
+            const mealTypes: [number, number, number, Date][] = [
                 // Sunday cook - Lunch M,T,W
                 [Math.round(3 * 0.5 * targetCalories), Math.round(3 * 0.6 * targetProtein), Math.round(3 * 0.5 * targetFat), new Date(new Date().setDate(new Date().getDate() + 1))], 
                 // Sunday cook - Dinner S,M,T,W
@@ -114,86 +234,39 @@ export default function QuantitativeNutrition(props: {
 
             const existingRecipeNames: string[] = [];
 
-            for (const mealType of mealTypes) {
-                const response = await fetch('/api/recipe', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        userDetails,
-                        goalDetails,
-                        cuisines: mealPlan.cuisines,
-                        existingRecipes: existingRecipeNames,
-                        calorieTarget: mealType[0],
-                        proteinTarget: mealType[1],
-                        fatTarget: mealType[2],
-                        cookDate: mealType[3],
-                    }),
-                });
-
-                if (!response.ok) {
-                    throw new Error('Failed to generate recipe');
-                }
-
-                const data = await response.json();
-                const recipe = data.recipe;
-
-                if (!recipe || typeof recipe !== 'object') {
-                    throw new Error('Invalid recipe data received');
-                }
-
-                const rid: UUID = recipe.id;
-                existingRecipeNames.push(recipe.recipe_name);
-
-                const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
-                for (const ingredient of ingredients) {
-                    await fetch('/api/ingredient', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            user_id: userDetails.id,
-                            recipe_id: rid,
-                            ...ingredient,
-                            purchased: false,
-                        }),
+            // Spawn parallel threads for each recipe
+            const recipePromises = mealTypes.map(async (mealType, index) => {
+                try {
+                    const recipe = await generateSingleRecipe(
+                        index,
+                        mealType[0],
+                        mealType[1], 
+                        mealType[2],
+                        mealType[3],
+                        existingRecipeNames
+                    );
+                    
+                    // Update loading state for this specific recipe
+                    setLoadingRecipes(prev => {
+                        const newState = [...prev];
+                        newState[index] = false;
+                        return newState;
                     });
-                }
-
-                const preprocessing = Array.isArray(recipe.preprocessing) ? recipe.preprocessing : [];
-                for (const prep of preprocessing) {
-                    await fetch('/api/preprocessing', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            user_id: userDetails.id,
-                            recipe_id: rid,
-                            ...prep,
-                        }),
+                    
+                    return recipe;
+                } catch (error) {
+                    // Update loading state for this specific recipe even on error
+                    setLoadingRecipes(prev => {
+                        const newState = [...prev];
+                        newState[index] = false;
+                        return newState;
                     });
+                    throw error;
                 }
+            });
 
-                const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
-                for (const step of steps) {
-                    await fetch('/api/step', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            user_id: userDetails.id,
-                            recipe_id: rid,
-                            ...step,
-                        }),
-                    });
-                }
-
-                await props.onAppend(recipe);
-            }
+            // Wait for all recipes to complete
+            await Promise.all(recipePromises);
             console.log('Successfully generated new meal plan!');
         } catch (error) {
             console.error(error instanceof Error ? error.message : 'Failed to generate meal plan');
@@ -221,7 +294,7 @@ export default function QuantitativeNutrition(props: {
                 </div>
                 <div className="flex-auto"></div>
             </div>    
-            {recipesDetails.length === 0 && (
+            {recipesDetails.length === 0 && !isLoading && (
                 <div className="flex min-h-[800px] items-center justify-center">
                     <div
                         onClick={() => {
@@ -237,7 +310,7 @@ export default function QuantitativeNutrition(props: {
                     </div>
                 </div>
             )}
-            {recipesDetails.length > 0 && (
+            {(isLoading || recipesDetails.length > 0) && (
                 <div className="flex flex-col gap-4 pt-20">
                     <div className="flex gap-4">
                         <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
@@ -282,6 +355,11 @@ export default function QuantitativeNutrition(props: {
                         </div>
                     </div>
                     <div className="flex flex-col gap-4">
+                        {/* Show placeholders while loading */}
+                        {isLoading && loadingRecipes.map((isLoading, index) => 
+                            isLoading && <RecipePlaceholder key={`placeholder-${index}`} index={index} />
+                        )}
+                        {/* Show actual recipes */}
                         {recipesDetails.map((recipe, index) => (
                             <RecipeDisplay key={index} recipe={recipe} ingredients={ingredientsDetails} preprocessing={preprocessingDetails} steps={stepsDetails} recipesDetails={recipesDetails} onUpdatePreprocessing={onUpdatePreprocessing} onUpdateSteps={onUpdateSteps} onUpdateShoppingList={onUpdateShoppingList} />
                         ))}

@@ -21,9 +21,9 @@ export default function RecipeDisplay(props: {
 
     useEffect(() => {
         setRecipeData(recipe);
-        setIngredientsData(ingredients || []);
-        setStepsData(steps || []);
-        setPreprocessingData(preprocessing || []);
+        setIngredientsData(ingredients);
+        setStepsData(steps);
+        setPreprocessingData(preprocessing);
     }, [recipe, ingredients, preprocessing, steps]);
 
     // Filter ingredients for this specific recipe

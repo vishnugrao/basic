@@ -223,12 +223,10 @@ export async function updateMultipleIngredients(ingredients: Array<{
     id: UUID, 
     updated_at: string
 }>) {
-    console.log('updateMultipleIngredients called with:', ingredients);
     const supabase = await createClient()
 
     // Update each ingredient individually since we only need to update the purchased field
     for (const ingredient of ingredients) {
-        console.log('Updating ingredient:', ingredient);
         const { error } = await supabase
             .from('Ingredients')
             .update({
@@ -240,8 +238,6 @@ export async function updateMultipleIngredients(ingredients: Array<{
 
         if (error) {
             console.log('Error updating ingredient:', error);
-        } else {
-            console.log('Successfully updated ingredient:', ingredient.id);
         }
     }
     console.log('updateMultipleIngredients completed');

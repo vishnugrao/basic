@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
         if (error) throw error;
         
-        return NextResponse.json({ message: 'Step created successfully' });
+        return NextResponse.json({ message: 'Step created successfully', step: step });
     } catch (error) {
         console.error('Error creating step:', error);
         return NextResponse.json({ error: 'Failed to create step' }, { status: 500 });

@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
         if (error) throw error;
         
-        return NextResponse.json({ message: 'Ingredient created successfully' });
+        return NextResponse.json({ message: 'Ingredient created successfully', ingredient: ingredient });
     } catch (error) {
         console.error('Error creating ingredient:', error);
         return NextResponse.json({ error: 'Failed to create ingredient' }, { status: 500 });
