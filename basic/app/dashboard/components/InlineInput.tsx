@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useRef, useCallback} from "react";
+import React, {useState, useEffect, useRef, useCallback, RefObject} from "react";
 import useKeyPress from "../hooks/useKeyPress";
 import useOnClickOutside from "../hooks/useOnClickOutside";
 
@@ -17,7 +17,7 @@ export default function InlineInput(props: { text: string; onSetText: (text: str
 
     const { onSetText } = props;
 
-    useOnClickOutside(wrapperRef, () => {
+    useOnClickOutside(wrapperRef as RefObject<Element>, () => {
         if (isInputActive) {
             onSetText(inputValue);
             setIsInputActive(false);

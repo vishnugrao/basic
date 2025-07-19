@@ -1,6 +1,6 @@
 'use client'
 
-import { JSX, useCallback, useEffect, useRef, useState } from "react"
+import { JSX, RefObject, useCallback, useEffect, useRef, useState } from "react"
 import useKeyPress from "../hooks/useKeyPress";
 import useOnClickOutside from "../hooks/useOnClickOutside";
 
@@ -57,7 +57,7 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
     const enter = useKeyPress('Enter');
     const esc = useKeyPress('Escape');
 
-    useOnClickOutside(wrapperRef, () => {
+    useOnClickOutside(wrapperRef as RefObject<Element>, () => {
         if (isInputActive) {
             setSearchValue(searchValue);
             setIsInputActive(false);
