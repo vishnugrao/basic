@@ -52,6 +52,12 @@ export interface Recipe {
     updated_at: string;
 }
 
+export interface RecipeWithData extends Recipe {
+    ingredients?: Ingredient[];
+    preprocessing?: Preprocessing[];
+    steps?: Step[];
+}
+
 export interface Ingredient {
     id: UUID;
     user_id: UUID;

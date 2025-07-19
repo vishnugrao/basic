@@ -1,6 +1,6 @@
 'use client'
 
-import { Goal, Ingredient, MealPlan, Recipe, User, Preprocessing, Step } from "@/types/types";
+import { Goal, Ingredient, MealPlan, Recipe, RecipeWithData, User, Preprocessing, Step } from "@/types/types";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import InlineInput from "./InlineInput";
 import ShoppingList from "./ShoppingList";
@@ -38,7 +38,7 @@ export default function QuantitativeNutrition(props: {
     preprocessingDetails: Preprocessing[], 
     stepsDetails: Step[], 
     onUpdateAll: (updates: Recipe[]) => Promise<void>, 
-    onAppend: (addition: Recipe) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, onUpdateSteps: (updates: Step[]) => Promise<void>
+    onAppend: (addition: RecipeWithData) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, onUpdateSteps: (updates: Step[]) => Promise<void>
 }) {
     const { userDetails, goalDetails, mealPlan, recipesDetails, 
         ingredientsDetails, preprocessingDetails, stepsDetails, 
@@ -56,10 +56,6 @@ export default function QuantitativeNutrition(props: {
     const [customCuisine, setCustomCuisine] = useState("...");
     const [isPreprocessingOpen, setIsPreprocessingOpen] = useState(false);
     const [loadingRecipes, setLoadingRecipes] = useState<boolean[]>([false, false, false, false]);
-    const [recipes, setRecipes] = useState<Recipe[]>([]);
-    const [ingredients, setIngredients] = useState<Ingredient[]>([]);
-    const [preprocessing, setPreprocessing] = useState<Preprocessing[]>([]);
-    const [steps, setSteps] = useState<Step[]>([]);
 
     const toggleShoppingList = () => {
         setIsShoppingListOpen(!isShoppingListOpen);
@@ -80,13 +76,6 @@ export default function QuantitativeNutrition(props: {
         console.log('onUpdatePreprocessing completed');
     }
 
-    useEffect(() => {
-        setRecipes(recipesDetails);
-        setIngredients(ingredientsDetails);
-        setPreprocessing(preprocessingDetails);
-        setSteps(stepsDetails);
-    }, [recipesDetails, ingredientsDetails, preprocessingDetails, stepsDetails])
-    
     useEffect(() =>  {
         const bmrConstant = userDetails.gender == "Male" ? 5 : -161;
         const basalMetabolicRate = 10 * userDetails.weight + 6.25 * userDetails.height - 5 * userDetails.age + bmrConstant;
@@ -123,7 +112,10 @@ export default function QuantitativeNutrition(props: {
         targetProtein: number, 
         targetFat: number, 
         cookDate: Date,
-        existingRecipeNames: string[]
+        existingRecipeNames: Recipe[],
+        existingIngredients: Ingredient[],
+        existingPreprocessing: Preprocessing[],
+        existingSteps: Step[]
     ) => {
         try {
             const response = await fetch('/api/recipe', {
@@ -153,16 +145,14 @@ export default function QuantitativeNutrition(props: {
             const preprocessing = data.preprocessing;
             const steps = data.steps;
 
-            console.log(recipe);
-            console.log(ingredients);
-            console.log(preprocessing);
-            console.log(steps);
-
             if (!recipe || typeof recipe !== 'object') {
                 throw new Error('Invalid recipe data received');
             }
 
-            existingRecipeNames.push(recipe.recipe_name);
+            existingRecipeNames.push(recipe);
+            existingIngredients.push(ingredients);
+            existingPreprocessing.push(preprocessing);
+            existingSteps.push(steps);
 
             // Generate ingredients
             if (ingredients && Array.isArray(ingredients)) {
@@ -233,7 +223,10 @@ export default function QuantitativeNutrition(props: {
                 [Math.round(4 * 0.3 * targetCalories), Math.round(4 * 0.3 * targetProtein), Math.round(4 * 0.3 * targetFat), new Date(new Date().setDate(new Date().getDate() + 5))]
             ];
 
-            const existingRecipeNames: string[] = [];
+            const existingRecipeNames: Recipe[] = [];
+            const existingIngredients: Ingredient[] = [];
+            const existingPreprocessing: Preprocessing[] = [];
+            const existingSteps: Step[] = [];
 
             // Spawn parallel threads for each recipe
             const recipePromises = mealTypes.map(async (mealType, index) => {
@@ -244,7 +237,10 @@ export default function QuantitativeNutrition(props: {
                         mealType[1], 
                         mealType[2],
                         mealType[3],
-                        existingRecipeNames
+                        existingRecipeNames,
+                        existingIngredients,
+                        existingPreprocessing,
+                        existingSteps
                     );
 
                     // Update loading state for this specific recipe
@@ -361,8 +357,8 @@ export default function QuantitativeNutrition(props: {
                             isLoading && <RecipePlaceholder key={`placeholder-${index}`} index={index} />
                         )}
                         {/* Show actual recipes */}
-                        {recipes.map((recipe, index) => (
-                            <RecipeDisplay key={index} recipe={recipe} ingredients={ingredients} preprocessing={preprocessing} steps={steps} recipesDetails={recipes} onUpdatePreprocessing={onUpdatePreprocessing} onUpdateSteps={onUpdateSteps} onUpdateShoppingList={onUpdateShoppingList} />
+                        {recipesDetails.map((recipe, index) => (
+                            <RecipeDisplay key={index} recipe={recipe} ingredients={ingredientsDetails} preprocessing={preprocessingDetails} steps={stepsDetails} recipesDetails={recipesDetails} onUpdatePreprocessing={onUpdatePreprocessing} onUpdateSteps={onUpdateSteps} onUpdateShoppingList={onUpdateShoppingList} />
                         ))}
                     </div>
                 </div>

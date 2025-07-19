@@ -13,55 +13,51 @@ export default function RecipeDisplay(props: {
 }) {
     const { recipe, ingredients, preprocessing, steps, onUpdateSteps, onUpdateShoppingList, onUpdatePreprocessing } = props;
     const [recipeData, setRecipeData] = useState<Recipe | null>(recipe);
-    const [ingredientsData, setIngredientsData] = useState<Ingredient[]>(ingredients || []);
-    const [stepsData, setStepsData] = useState<Step[]>(steps || []);
-    const [preprocessingData, setPreprocessingData] = useState<Preprocessing[]>(preprocessing || []);
     const [ingredientsVisible, setIngredientsVisible] = useState(false);
     const [preprocessingVisible, setPreprocessingVisible] = useState(false);
 
     // Reactive data updates when props change
     useEffect(() => {
         setRecipeData(recipe);
-        setIngredientsData(ingredients || []);
-        setStepsData(steps || []);
-        setPreprocessingData(preprocessing || []);
-    }, [recipe, ingredients, preprocessing, steps]);
+    }, [recipe]);
 
-    // Reactive filtering using useMemo for better performance
-    const recipeIngredients = useMemo(() => 
-        ingredientsData.filter(ingredient => ingredient.recipe_id === recipe.id),
-        [ingredientsData, recipe.id]
-    );
+    // Reactive filtering using useMemo for better performance - now using props directly
+    const recipeIngredients = useMemo(() => {
+        const filtered = ingredients.filter(ingredient => ingredient.recipe_id === recipe.id);
+        console.log(`RecipeDisplay: Filtered ${filtered.length} ingredients for recipe ${recipe.id}`);
+        return filtered;
+    }, [ingredients, recipe.id]);
 
-    const recipeSteps = useMemo(() => 
-        stepsData.filter(step => step.recipe_id === recipe.id),
-        [stepsData, recipe.id]
-    );
+    const recipeSteps = useMemo(() => {
+        const filtered = steps.filter(step => step.recipe_id === recipe.id);
+        console.log(`RecipeDisplay: Filtered ${filtered.length} steps for recipe ${recipe.id}`);
+        return filtered;
+    }, [steps, recipe.id]);
 
-    const recipePreprocessing = useMemo(() => 
-        preprocessingData.filter(prep => prep.recipe_id === recipe.id),
-        [preprocessingData, recipe.id]
-    );
+    const recipePreprocessing = useMemo(() => {
+        const filtered = preprocessing.filter(prep => prep.recipe_id === recipe.id);
+        console.log(`RecipeDisplay: Filtered ${filtered.length} preprocessing items for recipe ${recipe.id}`);
+        return filtered;
+    }, [preprocessing, recipe.id]);
 
     const handleIngredientToggle = async (ingredient: Ingredient) => {
-        const updatedIngredients = ingredientsData.map(ing => 
+        const updatedIngredients = ingredients.map(ing => 
             ing.id === ingredient.id ? { ...ing, purchased: !ing.purchased } : ing
         );
-        setIngredientsData(updatedIngredients);
         await onUpdateShoppingList(updatedIngredients);
     };
 
     // Reactive update handlers that work with the current filtered data
     const handleUpdateShoppingList = async () => {
-        await onUpdateShoppingList(ingredientsData);
+        await onUpdateShoppingList(ingredients);
     };
 
     const handleUpdateSteps = async () => {
-        await onUpdateSteps(stepsData);
+        await onUpdateSteps(steps);
     };
 
     const handleUpdatePreprocessing = async () => {
-        await onUpdatePreprocessing(preprocessingData);
+        await onUpdatePreprocessing(preprocessing);
     };
 
     return (

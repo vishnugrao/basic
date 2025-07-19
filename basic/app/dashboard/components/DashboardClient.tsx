@@ -5,7 +5,7 @@ import UserDetails from "./UserDetails";
 import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
-import { User, Goal, MealPlan, SearchSet, Recipe, Ingredient, Preprocessing, Step } from "@/types/types";
+import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step } from "@/types/types";
 import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients } from "../actions";
 
 export default function DashboardClient({ 
@@ -85,11 +85,22 @@ export default function DashboardClient({
         await updateMealPlanner(updatedMealPlan);
     };
 
-    const handleRecipesAppend = async (addition: Recipe) => {
+    const handleRecipesAppend = async (addition: RecipeWithData) => {
         setRecipesDetails(currentRecipes => {
             const newRecipes = currentRecipes.length === 0 ? [addition] : [...currentRecipes, addition];
             return newRecipes;
         });
+        
+        // Also update the related data arrays when a new recipe is added
+        if (addition.ingredients && addition.ingredients.length > 0) {
+            setIngredientsDetails(currentIngredients => [...currentIngredients, ...addition.ingredients!]);
+        }
+        if (addition.preprocessing && addition.preprocessing.length > 0) {
+            setPreprocessingDetails(currentPreprocessing => [...currentPreprocessing, ...addition.preprocessing!]);
+        }
+        if (addition.steps && addition.steps.length > 0) {
+            setStepsDetails(currentSteps => [...currentSteps, ...addition.steps!]);
+        }
     }
 
     const handleRecipesUpdateAll = async (updates: Recipe[]) => {
