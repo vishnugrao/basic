@@ -1,6 +1,6 @@
 'use client'
 
-import { JSX, useCallback, useEffect, useRef, useState } from "react"
+import { JSX, RefObject, useCallback, useEffect, useRef, useState } from "react"
 import useKeyPress from "../hooks/useKeyPress";
 import useOnClickOutside from "../hooks/useOnClickOutside";
 
@@ -57,7 +57,7 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
     const enter = useKeyPress('Enter');
     const esc = useKeyPress('Escape');
 
-    useOnClickOutside(wrapperRef, () => {
+    useOnClickOutside(wrapperRef as RefObject<Element>, () => {
         if (isInputActive) {
             setSearchValue(searchValue);
             setIsInputActive(false);
@@ -111,14 +111,14 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
         const sortedSuggestions = sortBySimilarity(props.searchSet, searchValue)
             .slice(0, 20)
             .map((suggestion, idx) => (
-                <p key={idx} 
-                className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer"
+                <div key={idx} 
+                className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                 onClick={() => {
                     addCuisine(suggestion, idx.toString());
                     setSearchValue("Search for a cuisine");
                     }}>
-                    &nbsp;{suggestion}&nbsp;
-                </p>
+                    <p>&nbsp;{suggestion}&nbsp;</p>
+                </div>
             ));
         setSearchSuggestions(sortedSuggestions);
     }, [props.searchSet, searchValue, addCuisine]);

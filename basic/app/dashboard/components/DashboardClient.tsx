@@ -5,8 +5,8 @@ import UserDetails from "./UserDetails";
 import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
-import { User, Goal, MealPlan, SearchSet, Recipe, Ingredient } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateIngredients } from "../actions";
+import { User, Goal, MealPlan, SearchSet, Recipe, Ingredient, Preprocessing, Step } from "@/types/types";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -14,14 +14,18 @@ export default function DashboardClient({
     initialMealPlan,
     searchSet,
     initialRecipesDetails,
-    initialIngredientDetails
+    initialIngredientDetails,
+    initialPreprocessingDetails,
+    initialStepsDetails
 }: {
     initialUserDetails: User,
     initialGoalDetails: Goal,
     initialMealPlan: MealPlan,
     searchSet: SearchSet,
     initialRecipesDetails: Recipe[],
-    initialIngredientDetails: Ingredient[]
+    initialIngredientDetails: Ingredient[],
+    initialPreprocessingDetails: Preprocessing[],
+    initialStepsDetails: Step[]
 }) {
     
     const [userDetails, setUserDetails] = useState<User>(initialUserDetails);
@@ -45,7 +49,9 @@ export default function DashboardClient({
 
     const [recipesDetails, setRecipesDetails] = useState<Recipe[]>(initialRecipesDetails);
     const [ingredientsDetails, setIngredientsDetails] = useState<Ingredient[]>(initialIngredientDetails);
-
+    const [preprocessingDetails, setPreprocessingDetails] = useState<Preprocessing[]>(initialPreprocessingDetails);
+    const [stepsDetails, setStepsDetails] = useState<Step[]>(initialStepsDetails);
+    
     const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
 
     const handleUserUpdate = async (updates: Partial<User>) => {
@@ -102,19 +108,29 @@ export default function DashboardClient({
 
     const handleIngredientsUpdate = async (updates: Ingredient[]) => {
         try {
-            await Promise.all(updates.map(ingredient =>
-                updateIngredients({
-                    purchased: ingredient.purchased,
-                    user_id: ingredient.user_id,
-                    recipe_id: ingredient.recipe_id,
-                    updated_at: new Date().toISOString()
-                })
-            ));
+            console.log('handleIngredientsUpdate called with:', updates);
+            await updateMultipleIngredients(updates.map(ingredient => ({
+                purchased: ingredient.purchased,
+                user_id: ingredient.user_id,
+                id: ingredient.id,
+                updated_at: new Date().toISOString()
+            })));
             setIngredientsDetails(updates);
+            console.log('Database update completed successfully');
         } catch (error) {
             console.error('Error updating ingredients:', error);
         }
     }; 
+
+    const handlePreprocessingUpdate = async (updates: Preprocessing[]) => {
+        setPreprocessingDetails(updates);
+        console.log('handlePreprocessingUpdate called with:', updates);
+    }
+
+    const handleStepsUpdate = async (updates: Step[]) => {
+        setStepsDetails(updates);
+        console.log('handleStepsUpdate called with:', updates);
+    }
 
     return (
         <div className="flex flex-col">
@@ -155,11 +171,15 @@ export default function DashboardClient({
                     mealPlan={mealPlan}
                     recipesDetails={recipesDetails}
                     ingredientsDetails={ingredientsDetails}
+                    preprocessingDetails={preprocessingDetails}
+                    stepsDetails={stepsDetails}
                     onAppend={handleRecipesAppend}
                     onUpdateAll={handleRecipesUpdateAll}
                     isShoppingListOpen={isShoppingListOpen}
                     setIsShoppingListOpen={setIsShoppingListOpen}
                     onUpdateShoppingList={handleIngredientsUpdate}
+                    onUpdatePreprocessing={handlePreprocessingUpdate}
+                    onUpdateSteps={handleStepsUpdate}
                 />
             </div>
         </div>

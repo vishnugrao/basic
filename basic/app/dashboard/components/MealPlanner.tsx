@@ -46,7 +46,7 @@ export default function MealPlanner({
                     <div className="flex-auto"></div>
                     
                     <div className="flex items-baseline text-2xl pl-4">
-                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl"
+                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                         onClick={toggleCuisineSearch}
                         >
                             <p>&nbsp;Change&nbsp;</p>

@@ -1,22 +1,28 @@
 'use client'
 
-import { Goal, Ingredient, MealPlan, Recipe, User } from "@/types/types";
+import { Goal, Ingredient, MealPlan, Recipe, User, Preprocessing, Step } from "@/types/types";
 import { UUID } from "crypto";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import InlineInput from "./InlineInput";
 import ShoppingList from "./ShoppingList";
+import PreprocessingList from "./PreprocessingList";
+import RecipeDisplay from "./RecipeDisplay";
 
 export default function QuantitativeNutrition(props: {
-    userDetails: User, goalDetails: Goal, mealPlan: MealPlan, recipesDetails: Recipe[], ingredientsDetails: Ingredient[], onUpdateAll: (updates: Recipe[]) => Promise<void>, onAppend: (addition: Recipe) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>
+    userDetails: User,
+    goalDetails: Goal, 
+    mealPlan: MealPlan, 
+    recipesDetails: Recipe[], 
+    ingredientsDetails: Ingredient[], 
+    preprocessingDetails: Preprocessing[], 
+    stepsDetails: Step[], 
+    onUpdateAll: (updates: Recipe[]) => Promise<void>, 
+    onAppend: (addition: Recipe) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, onUpdateSteps: (updates: Step[]) => Promise<void>
 }) {
-    const { userDetails } = props;
-    const { goalDetails } = props;
-    const { mealPlan } = props;
-    const { recipesDetails } = props;
-    const { isShoppingListOpen } = props;
-    const { setIsShoppingListOpen } = props;
-    const { onUpdateShoppingList } = props;
-    const { ingredientsDetails } = props;
+    const { userDetails, goalDetails, mealPlan, recipesDetails, 
+        ingredientsDetails, preprocessingDetails, stepsDetails, 
+        isShoppingListOpen, setIsShoppingListOpen, onUpdateShoppingList, 
+        onUpdatePreprocessing, onUpdateSteps } = props;
     const [tdee, setTDEE] = useState(0);
     const [offset, setOffset] = useState(0);
     const [protein, setProtein] = useState(0);
@@ -27,14 +33,28 @@ export default function QuantitativeNutrition(props: {
     const dailySnackCalories = 300;
     const [isLoading, setIsLoading] = useState(false);
     const [customCuisine, setCustomCuisine] = useState("...");
+    const [isPreprocessingOpen, setIsPreprocessingOpen] = useState(false);
 
     const toggleShoppingList = () => {
         setIsShoppingListOpen(!isShoppingListOpen);
     }
 
     const closeShoppingList = async (ingredients: Ingredient[]) => {
+        console.log('closeShoppingList called with:', ingredients);
         setIsShoppingListOpen(false);
         await onUpdateShoppingList(ingredients);
+        console.log('onUpdateShoppingList completed');
+    }
+
+    const togglePreprocessing = () => {
+        setIsPreprocessingOpen(!isPreprocessingOpen);
+    }
+
+    const closePreprocessingList = async (preprocessing: Preprocessing[]) => {
+        console.log('closePreprocessingList called with:', preprocessing);
+        setIsPreprocessingOpen(false);
+        await onUpdatePreprocessing(preprocessing);
+        console.log('onUpdatePreprocessing completed');
     }
 
     useEffect(() => {
@@ -210,12 +230,10 @@ export default function QuantitativeNutrition(props: {
                                 protein - dailyBreakfastProtein,
                                 fat - dailyBreakfastFat)
                         }}
-                        className={`${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         aria-disabled={isLoading}
                     >
-                        <p className="text-2xl border-4 border-current rounded-xl whitespace-nowrap">
-                            &nbsp;{isLoading ? 'Generating meal plan...' : 'Generate a meal plan!'}&nbsp;
-                        </p>
+                        <p>&nbsp;{isLoading ? 'Generating meal plan...' : 'Generate a meal plan!'}&nbsp;</p>
                     </div>
                 </div>
             )}
@@ -228,6 +246,12 @@ export default function QuantitativeNutrition(props: {
                             <p>&nbsp;Shopping List&nbsp;</p>
                         </div>
                         {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={ingredientsDetails} />}
+                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                            onClick={togglePreprocessing}
+                        >
+                            <p>&nbsp;Preprocessing&nbsp;</p>
+                        </div>
+                        {isPreprocessingOpen && <PreprocessingList closePreprocessingList={closePreprocessingList} preprocessing={preprocessingDetails} />}
                         <div className="flex-auto"></div>
                         <div className="flex w-1/2 gap-4">
                             <div className="flex">
@@ -244,10 +268,13 @@ export default function QuantitativeNutrition(props: {
                                 <p>&nbsp;Re-roll Selected&nbsp;</p>
                             </div>
                             <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
-                                onClick={() => { rollRecipes(
-                                    tdee + offset - dailySnackCalories - dailyBreakfastCalories, 
-                                    protein - dailyBreakfastProtein, 
-                                    fat - dailyBreakfastFat) 
+                                onClick={() => {
+                                    console.log('Re-rolling all recipes');
+                                    rollRecipes(
+                                        tdee + offset - dailySnackCalories - dailyBreakfastCalories, 
+                                        protein - dailyBreakfastProtein, 
+                                        fat - dailyBreakfastFat);
+                                    // setIsShoppingListOpen(true);
                                 }}
                             >
                                 <p>&nbsp;Re-roll All&nbsp;</p>
@@ -256,9 +283,7 @@ export default function QuantitativeNutrition(props: {
                     </div>
                     <div className="flex flex-col gap-4">
                         {recipesDetails.map((recipe, index) => (
-                            <div key={index}>
-                                <p className="text-2xl">{recipe.recipe_name}</p>
-                            </div>
+                            <RecipeDisplay key={index} recipe={recipe} ingredients={ingredientsDetails} preprocessing={preprocessingDetails} steps={stepsDetails} recipesDetails={recipesDetails} onUpdatePreprocessing={onUpdatePreprocessing} onUpdateSteps={onUpdateSteps} onUpdateShoppingList={onUpdateShoppingList} />
                         ))}
                     </div>
                 </div>
