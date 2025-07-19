@@ -224,8 +224,6 @@ export async function updateMultipleIngredients(ingredients: Array<{
     updated_at: string
 }>) {
     const supabase = await createClient()
-
-    // Update all ingredients concurrently for better performance
     const updatePromises = ingredients.map(async (ingredient) => {
         const { error } = await supabase
             .from('Ingredients')

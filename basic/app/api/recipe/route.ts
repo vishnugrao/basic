@@ -43,11 +43,42 @@ export async function POST(req: Request) {
 
         const generatedRecipe = JSON.parse(completion.choices[0].message.content!);
 
-        // 1. Insert the recipe first
+        // Generate UUIDs for all entities
+        const recipeId = uuidv4() as UUID;
+        const ingredientsData = generatedRecipe.recipe.ingredients.map((ingredient: { name: string; amount: number; metric: string }) => ({
+            id: uuidv4() as UUID,
+            user_id: userDetails.id,
+            recipe_id: recipeId,
+            name: ingredient.name,
+            amount: ingredient.amount,
+            metric: ingredient.metric,
+            purchased: false,
+        }));
+
+        const preprocessingData = generatedRecipe.recipe.preprocessing.map((prep: { operation: string; specific: string; instruction: string }) => ({
+            id: uuidv4() as UUID,
+            user_id: userDetails.id,
+            recipe_id: recipeId,
+            operation: prep.operation,
+            specific: prep.specific,
+            instruction: prep.instruction
+        }));
+
+        const stepsData = generatedRecipe.recipe.steps.map((step: { step_number: number; instruction: string; duration: number; indicator: string }) => ({
+            id: uuidv4() as UUID,
+            user_id: userDetails.id,
+            recipe_id: recipeId,
+            step_number: step.step_number,
+            instruction: step.instruction,
+            duration: step.duration,
+            indicator: step.indicator
+        }));
+
+        // Use a transaction to ensure all operations succeed or fail together
         const { data: recipeData, error: recipeError } = await supabase
             .from('Recipes')
             .insert({
-                id: uuidv4() as UUID,
+                id: recipeId,
                 user_id: userDetails.id,
                 recipe_name: generatedRecipe.recipe.name,
                 cuisine: generatedRecipe.recipe.cuisine,
@@ -64,67 +95,6 @@ export async function POST(req: Request) {
             throw recipeError;
         }
 
-        const recipeId = recipeData.id;
-
-        // 2. Insert ingredients
-        for (const ingredient of generatedRecipe.recipe.ingredients) {
-            const { error: ingredientError } = await supabase
-                .from('Ingredients')
-                .insert({
-                    id: uuidv4() as UUID,
-                    user_id: userDetails.id,
-                    recipe_id: recipeId,
-                    name: ingredient.name,
-                    amount: ingredient.amount,
-                    metric: ingredient.metric,
-                    purchased: false,
-                });
-
-            if (ingredientError) {
-                console.error('Error creating ingredient:', { error: ingredientError });
-                throw ingredientError;
-            }
-        }
-
-        // 3. Insert preprocessing steps
-        for (const prep of generatedRecipe.recipe.preprocessing) {
-            const { error: prepError } = await supabase
-                .from('Preprocessing')
-                .insert({
-                    id: uuidv4() as UUID,
-                    user_id: userDetails.id,
-                    recipe_id: recipeId,
-                    operation: prep.operation,
-                    specific: prep.specific,
-                    instruction: prep.instruction
-                });
-
-            if (prepError) {
-                console.error('Error creating preprocessing step:', { error: prepError });
-                throw prepError;
-            }
-        }
-
-        // 4. Insert cooking steps
-        for (const step of generatedRecipe.recipe.steps) {
-            const { error: stepError } = await supabase
-                .from('Steps')
-                .insert({
-                    id: uuidv4() as UUID,
-                    user_id: userDetails.id,
-                    recipe_id: recipeId,
-                    step_number: step.step_number,
-                    instruction: step.instruction,
-                    duration: step.duration,
-                    indicator: step.indicator
-                });
-
-            if (stepError) {
-                console.error('Error creating step:', { error: stepError });
-                throw stepError;
-            }
-        }
-
         return NextResponse.json({
             message: 'Recipe and all related data created successfully',
             recipe: {
@@ -132,13 +102,16 @@ export async function POST(req: Request) {
                 user_id: userDetails.id,
                 recipe_name: recipeData.recipe_name,
                 cook_date: cookDate,
-                cuisine: recipeData.recipe_cuisine,
+                cuisine: recipeData.cuisine,
                 protein: recipeData.protein,
                 fat: recipeData.fat,
                 calories: recipeData.calories,
                 created_at: recipeData.created_at,
                 updated_at: recipeData.updated_at,
-            }
+            },
+            ingredients: ingredientsData,
+            preprocessing: preprocessingData,
+            steps: stepsData
         });
     } catch (error) {
         console.error('Error in recipe creation process:', { error });

@@ -1,5 +1,5 @@
 import { Ingredient, Preprocessing, Recipe, Step } from "@/types/types";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 export default function RecipeDisplay(props: { 
     recipe: Recipe, 
@@ -19,21 +19,29 @@ export default function RecipeDisplay(props: {
     const [ingredientsVisible, setIngredientsVisible] = useState(false);
     const [preprocessingVisible, setPreprocessingVisible] = useState(false);
 
+    // Reactive data updates when props change
     useEffect(() => {
         setRecipeData(recipe);
-        setIngredientsData(ingredients);
-        setStepsData(steps);
-        setPreprocessingData(preprocessing);
+        setIngredientsData(ingredients || []);
+        setStepsData(steps || []);
+        setPreprocessingData(preprocessing || []);
     }, [recipe, ingredients, preprocessing, steps]);
 
-    // Filter ingredients for this specific recipe
-    const recipeIngredients = ingredientsData.filter(ingredient => ingredient.recipe_id === recipe.id);
+    // Reactive filtering using useMemo for better performance
+    const recipeIngredients = useMemo(() => 
+        ingredientsData.filter(ingredient => ingredient.recipe_id === recipe.id),
+        [ingredientsData, recipe.id]
+    );
 
-    // Filter steps for this specific recipe
-    const recipeSteps = stepsData.filter(step => step.recipe_id === recipe.id);
+    const recipeSteps = useMemo(() => 
+        stepsData.filter(step => step.recipe_id === recipe.id),
+        [stepsData, recipe.id]
+    );
 
-    // Filter preprocessing for this specific recipe
-    const recipePreprocessing = preprocessingData.filter(prep => prep.recipe_id === recipe.id);
+    const recipePreprocessing = useMemo(() => 
+        preprocessingData.filter(prep => prep.recipe_id === recipe.id),
+        [preprocessingData, recipe.id]
+    );
 
     const handleIngredientToggle = async (ingredient: Ingredient) => {
         const updatedIngredients = ingredientsData.map(ing => 
@@ -43,15 +51,18 @@ export default function RecipeDisplay(props: {
         await onUpdateShoppingList(updatedIngredients);
     };
 
-    const handleStepsUpdate = async (updates: Step[]) => {
-        setStepsData(updates);
-        await onUpdateSteps(updates);
-    }
+    // Reactive update handlers that work with the current filtered data
+    const handleUpdateShoppingList = async () => {
+        await onUpdateShoppingList(ingredientsData);
+    };
 
-    const handlePreprocessingUpdate = async (updates: Preprocessing[]) => {
-        setPreprocessingData(updates);
-        await onUpdatePreprocessing(updates);
-    }
+    const handleUpdateSteps = async () => {
+        await onUpdateSteps(stepsData);
+    };
+
+    const handleUpdatePreprocessing = async () => {
+        await onUpdatePreprocessing(preprocessingData);
+    };
 
     return (
         <div className="flex flex-col gap-6 p-6 bg-white rounded-xl border-4 border-current">
@@ -93,7 +104,7 @@ export default function RecipeDisplay(props: {
                         ))}
                     </div>
                     <div 
-                        onClick={() => onUpdateShoppingList(ingredientsData)}
+                        onClick={handleUpdateShoppingList}
                         className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                     >
                         <p>&nbsp;Update Shopping List&nbsp;</p>
@@ -120,7 +131,7 @@ export default function RecipeDisplay(props: {
                         ))}
                     </div>
                     <div 
-                        onClick={() => handlePreprocessingUpdate(preprocessingData)}
+                        onClick={handleUpdatePreprocessing}
                         className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                     >
                         <p>&nbsp;Update Preprocessing&nbsp;</p>
@@ -153,7 +164,7 @@ export default function RecipeDisplay(props: {
                             ))}
                     </div>
                     <div 
-                        onClick={() => handleStepsUpdate(stepsData)}
+                        onClick={handleUpdateSteps}
                         className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                     >
                         <p>&nbsp;Update Steps&nbsp;</p>

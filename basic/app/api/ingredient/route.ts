@@ -4,17 +4,17 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(req: Request) {
     try {
         const supabase = await createClient();
-        const ingredient = await req.json();
+        const ingredientData = await req.json();
         
         const { error } = await supabase
             .from('Ingredients')
-            .insert(ingredient);
+            .insert(ingredientData.ingredients);
 
         if (error) throw error;
         
-        return NextResponse.json({ message: 'Ingredient created successfully', ingredient: ingredient });
+        return NextResponse.json({ message: 'Ingredient batch processed successfully', ingredient: ingredientData });
     } catch (error) {
-        console.error('Error creating ingredient:', error);
-        return NextResponse.json({ error: 'Failed to create ingredient' }, { status: 500 });
+        console.error('Error processing ingredient batch:', error);
+        return NextResponse.json({ error: 'Failed to process ingredient batch' }, { status: 500 });
     }
 } 
