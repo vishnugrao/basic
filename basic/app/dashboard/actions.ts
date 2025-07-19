@@ -83,6 +83,28 @@ export async function getIngredients(user_id: UUID) {
     return data;
 }
 
+export async function getPreprocessing(user_id: UUID) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('Preprocessing').select('*').eq('user_id', user_id)
+
+    if (error) {
+        redirect('/error')
+    }
+
+    return data;
+}
+
+export async function getSteps(user_id: UUID) {
+    const supabase = await createClient()
+    const { data, error } = await supabase.from('Steps').select('*').eq('user_id', user_id)
+
+    if (error) {
+        redirect('/error')
+    }
+
+    return data;
+}
+
 export async function updateUserDetails(userDetails: {
     gender: string;
     height: number;

@@ -5,7 +5,7 @@ import UserDetails from "./UserDetails";
 import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
-import { User, Goal, MealPlan, SearchSet, Recipe, Ingredient } from "@/types/types";
+import { User, Goal, MealPlan, SearchSet, Recipe, Ingredient, Preprocessing, Step } from "@/types/types";
 import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients } from "../actions";
 
 export default function DashboardClient({ 
@@ -14,14 +14,18 @@ export default function DashboardClient({
     initialMealPlan,
     searchSet,
     initialRecipesDetails,
-    initialIngredientDetails
+    initialIngredientDetails,
+    initialPreprocessingDetails,
+    initialStepsDetails
 }: {
     initialUserDetails: User,
     initialGoalDetails: Goal,
     initialMealPlan: MealPlan,
     searchSet: SearchSet,
     initialRecipesDetails: Recipe[],
-    initialIngredientDetails: Ingredient[]
+    initialIngredientDetails: Ingredient[],
+    initialPreprocessingDetails: Preprocessing[],
+    initialStepsDetails: Step[]
 }) {
     
     const [userDetails, setUserDetails] = useState<User>(initialUserDetails);
@@ -45,7 +49,9 @@ export default function DashboardClient({
 
     const [recipesDetails, setRecipesDetails] = useState<Recipe[]>(initialRecipesDetails);
     const [ingredientsDetails, setIngredientsDetails] = useState<Ingredient[]>(initialIngredientDetails);
-
+    const [preprocessingDetails, setPreprocessingDetails] = useState<Preprocessing[]>(initialPreprocessingDetails);
+    const [stepsDetails, setStepsDetails] = useState<Step[]>(initialStepsDetails);
+    
     const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
 
     const handleUserUpdate = async (updates: Partial<User>) => {
@@ -116,6 +122,16 @@ export default function DashboardClient({
         }
     }; 
 
+    const handlePreprocessingUpdate = async (updates: Preprocessing[]) => {
+        setPreprocessingDetails(updates);
+        console.log('handlePreprocessingUpdate called with:', updates);
+    }
+
+    const handleStepsUpdate = async (updates: Step[]) => {
+        setStepsDetails(updates);
+        console.log('handleStepsUpdate called with:', updates);
+    }
+
     return (
         <div className="flex flex-col">
             <div className="px-10 pt-10 pb-5 flex">
@@ -155,11 +171,15 @@ export default function DashboardClient({
                     mealPlan={mealPlan}
                     recipesDetails={recipesDetails}
                     ingredientsDetails={ingredientsDetails}
+                    preprocessingDetails={preprocessingDetails}
+                    stepsDetails={stepsDetails}
                     onAppend={handleRecipesAppend}
                     onUpdateAll={handleRecipesUpdateAll}
                     isShoppingListOpen={isShoppingListOpen}
                     setIsShoppingListOpen={setIsShoppingListOpen}
                     onUpdateShoppingList={handleIngredientsUpdate}
+                    onUpdatePreprocessing={handlePreprocessingUpdate}
+                    onUpdateSteps={handleStepsUpdate}
                 />
             </div>
         </div>

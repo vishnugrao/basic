@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
-import { getUserDetails, getGoalDetails, getMealPlan, getSearchSet, getRecipes, getIngredients} from "./actions";
+import { getUserDetails, getGoalDetails, getMealPlan, getSearchSet, getRecipes, getIngredients, getPreprocessing, getSteps} from "./actions";
 import DashboardClient from "./components/DashboardClient";
 
 export default async function DashboardPage() {
@@ -17,6 +17,8 @@ export default async function DashboardPage() {
     const searchSet = await getSearchSet(userDetails.id)
     const recipes = await getRecipes(userDetails.id);
     const ingredients = await getIngredients(userDetails.id);
+    const preprocessing = await getPreprocessing(userDetails.id);
+    const steps = await getSteps(userDetails.id);
 
     return (
         <DashboardClient 
@@ -26,6 +28,8 @@ export default async function DashboardPage() {
             searchSet={searchSet}
             initialRecipesDetails={recipes}
             initialIngredientDetails={ingredients}
+            initialPreprocessingDetails={preprocessing}
+            initialStepsDetails={steps}
         />
     )
 }
