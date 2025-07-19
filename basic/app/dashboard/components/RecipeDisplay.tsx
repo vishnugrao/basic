@@ -58,18 +58,18 @@ export default function RecipeDisplay(props: {
             {/* Recipe Title with Buttons */}
             <div className="flex items-center gap-4">
                 <h2 className="text-2xl font-semibold text-[#B1454A]">{recipeData?.recipe_name}</h2>
-                <button 
+                <div 
                     onClick={() => setIngredientsVisible(!ingredientsVisible)}
-                    className="border-4 border-current rounded-xl cursor-pointer text-2xl px-4 py-2"
+                    className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                 >
-                    {ingredientsVisible ? 'Hide' : 'Show'} Ingredients
-                </button>
-                <button 
+                    <p>&nbsp;{ingredientsVisible ? 'Hide' : 'Show'} Ingredients&nbsp;</p>
+                </div>
+                <div 
                     onClick={() => setPreprocessingVisible(!preprocessingVisible)}
-                    className="border-4 border-current rounded-xl cursor-pointer text-2xl px-4 py-2"
+                    className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                 >
-                    {preprocessingVisible ? 'Hide' : 'Show'} Preprocessing
-                </button>
+                    <p>&nbsp;{preprocessingVisible ? 'Hide' : 'Show'} Preprocessing&nbsp;</p>
+                </div>
             </div>
 
             {/* Ingredients Section - Conditional */}
@@ -92,12 +92,12 @@ export default function RecipeDisplay(props: {
                             </div>
                         ))}
                     </div>
-                    <button 
+                    <div 
                         onClick={() => onUpdateShoppingList(ingredientsData)}
-                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit px-4 py-2 mt-2"
+                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                     >
-                        Update Shopping List
-                    </button>
+                        <p>&nbsp;Update Shopping List&nbsp;</p>
+                    </div>
                 </div>
             )}
 
@@ -119,12 +119,12 @@ export default function RecipeDisplay(props: {
                             </div>
                         ))}
                     </div>
-                    <button 
+                    <div 
                         onClick={() => handlePreprocessingUpdate(preprocessingData)}
-                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit px-4 py-2 mt-2"
+                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                     >
-                        Update Preprocessing
-                    </button>
+                        <p>&nbsp;Update Preprocessing&nbsp;</p>
+                    </div>
                 </div>
             )}
 
@@ -152,12 +152,12 @@ export default function RecipeDisplay(props: {
                                 </div>
                             ))}
                     </div>
-                    <button 
+                    <div 
                         onClick={() => handleStepsUpdate(stepsData)}
-                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit px-4 py-2 mt-2"
+                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                     >
-                        Update Steps
-                    </button>
+                        <p>&nbsp;Update Steps&nbsp;</p>
+                    </div>
                 </div>
             )}
         </div>

@@ -87,32 +87,32 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                                             removeCuisine(item!);
                                         }
                                     }}>
-                                    <p key={itemId} data-swapy-item={itemId} data-swapy-handle className="text-2xl border-4 border-current rounded-xl whitespace-nowrap cursor-pointer">
-                                        &nbsp;{item?.cuisine}&nbsp;
-                                    </p>
+                                    <div key={itemId} data-swapy-item={itemId} data-swapy-handle className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit">
+                                        <p>&nbsp;{item?.cuisine}&nbsp;</p>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                     <div className="flex-auto"></div>
                     <div className="flex items-baseline text-2xl pl-2 gap-4">
-                        <div className={"select-none cursor-pointer"}
+                        <div className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${rearrangeMode ? "border-transparent" : ""}`}
                             onClick={() => {
                                 if (rearrangeMode) {
                                     setRearrangeMode(false);
                                 }
                             }}
                         >
-                            <p className={`border-4 ${rearrangeMode ? "border-transparent" : "border-current rounded-xl whitespace-nowrap"}`}>&nbsp;Remove&nbsp;</p>
+                            <p>&nbsp;Remove&nbsp;</p>
                         </div>
-                        <div className={"select-none"}
+                        <div className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${!rearrangeMode ? "border-transparent" : ""}`}
                             onClick={() => {
                                 if (!rearrangeMode) {
                                     setRearrangeMode(true);
                                 }
                             }}
                         >
-                            <p className={`border-4 ${rearrangeMode ? "border-current rounded-xl whitespace-nowrap" : "border-transparent"}`}>&nbsp;Rearrange&nbsp;</p>
+                            <p>&nbsp;Rearrange&nbsp;</p>
                         </div>
                     </div>
                 </div>

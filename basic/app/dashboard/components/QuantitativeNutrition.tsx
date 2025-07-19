@@ -230,12 +230,10 @@ export default function QuantitativeNutrition(props: {
                                 protein - dailyBreakfastProtein,
                                 fat - dailyBreakfastFat)
                         }}
-                        className={`${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         aria-disabled={isLoading}
                     >
-                        <p className="text-2xl border-4 border-current rounded-xl whitespace-nowrap">
-                            &nbsp;{isLoading ? 'Generating meal plan...' : 'Generate a meal plan!'}&nbsp;
-                        </p>
+                        <p>&nbsp;{isLoading ? 'Generating meal plan...' : 'Generate a meal plan!'}&nbsp;</p>
                     </div>
                 </div>
             )}
