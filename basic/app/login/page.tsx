@@ -8,6 +8,7 @@ import Image from "next/image"
 export default function LoginPage() {
     const [isLoading] = useState(false)
     const [isSignUp, setIsSignUp] = useState(false)
+    const [showPassword, setShowPassword] = useState(false)
 
     return (
         <>
@@ -91,18 +92,30 @@ export default function LoginPage() {
                                     >
                                         Password
                                     </label>
-                                    <input
-                                        id="password"
-                                        name="password"
-                                        type="password"
-                                        required
-                                        disabled={isLoading}
-                                        className="w-full px-4 py-4 text-lg text-gray-900 border border-gray-200 
-                                                rounded-xl focus:outline-none focus:ring-2 
-                                                focus:ring-[#B1454A] focus:ring-opacity-20 
-                                                focus:border-[#B1454A] disabled:bg-gray-50
-                                                disabled:cursor-not-allowed transition-colors"
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            id="password"
+                                            name="password"
+                                            type={showPassword ? "text" : "password"}
+                                            required
+                                            disabled={isLoading}
+                                            className="w-full px-4 py-4 text-lg text-gray-900 border border-gray-200 
+                                                    rounded-xl focus:outline-none focus:ring-2 
+                                                    focus:ring-[#B1454A] focus:ring-opacity-20 
+                                                    focus:border-[#B1454A] disabled:bg-gray-50
+                                                    disabled:cursor-not-allowed transition-colors pr-12"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 
+                                                    text-gray-500 hover:text-gray-700 transition-colors
+                                                    disabled:opacity-50 disabled:cursor-not-allowed"
+                                            disabled={isLoading}
+                                        >
+                                            {showPassword ? "Hide" : "Show"}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {!isSignUp && (
@@ -146,11 +159,11 @@ export default function LoginPage() {
 
                         <div className="mt-8 text-center text-base text-gray-500">
                             By continuing, you agree to our{' '}
-                            <a href="#" className="text-gray-700 hover:text-gray-900 transition-colors">
+                            <a href="" className="text-gray-700 hover:text-gray-900 transition-colors">
                                 Terms of Service
                             </a>{' '}
                             and{' '}
-                            <a href="#" className="text-gray-700 hover:text-gray-900 transition-colors">
+                            <a href="" className="text-gray-700 hover:text-gray-900 transition-colors">
                                 Privacy Policy
                             </a>
                         </div>
