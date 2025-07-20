@@ -17,56 +17,73 @@ export default function PreprocessingList(props: {
     }, [preprocessing]);
 
     const groupedPreprocessing = useMemo(() => {
-        const groups: { [key: string]: Preprocessing[] } = {};
+        // Create hierarchical structure: operation -> specific -> ingredient
+        const hierarchicalGroups: { [operation: string]: { [specific: string]: { [ingredientName: string]: Preprocessing[] } } } = {};
+        
         preprocessingList.forEach(prep => {
-            if (!groups[prep.operation]) {
-                groups[prep.operation] = [];
+            // Initialize operation level
+            if (!hierarchicalGroups[prep.operation]) {
+                hierarchicalGroups[prep.operation] = {};
             }
-            groups[prep.operation].push(prep);
-        });
-        
-        const aggregatedGroups: { [key: string]: Preprocessing[] } = {};
-        Object.entries(groups).forEach(([operation, preps]) => {
-            const instructionGroups: { [key: string]: Preprocessing[] } = {};
-            preps.forEach(prep => {
-                const key = `${prep.instruction}-${prep.specific}`;
-                if (!instructionGroups[key]) {
-                    instructionGroups[key] = [];
-                }
-                instructionGroups[key].push(prep);
-            });
             
-            aggregatedGroups[operation] = Object.values(instructionGroups).map(group => {
-                const allCompleted = group.every(prep => prep.completed);
-                return {
-                    ...group[0],
-                    completed: allCompleted
-                };
+            // Initialize specific level
+            if (!hierarchicalGroups[prep.operation][prep.specific]) {
+                hierarchicalGroups[prep.operation][prep.specific] = {};
+            }
+            
+            // Initialize ingredient level
+            const ingredientName = prep.ingredient_name || `ingredient-${prep.ingredient_id}`;
+            if (!hierarchicalGroups[prep.operation][prep.specific][ingredientName]) {
+                hierarchicalGroups[prep.operation][prep.specific][ingredientName] = [];
+            }
+            
+            // Add preprocessing item to the appropriate group
+            hierarchicalGroups[prep.operation][prep.specific][ingredientName].push(prep);
+        });
+        
+        // Process each group to calculate completion status
+        Object.entries(hierarchicalGroups).forEach(([, specificGroups]) => {
+            Object.entries(specificGroups).forEach(([, ingredientGroups]) => {
+                Object.entries(ingredientGroups).forEach(([, group]) => {
+                    const allCompleted = group.every(prep => prep.completed);
+                    const completedCount = group.filter(prep => prep.completed).length;
+                    const totalCount = group.length;
+                    
+                    // Update the first item in the group with aggregated data
+                    if (group.length > 0) {
+                        group[0] = {
+                            ...group[0],
+                            completed: allCompleted,
+                            completedCount,
+                            totalCount,
+                            ids: group.map(prep => prep.id),
+                            recipe_ids: group.map(prep => prep.recipe_id)
+                        };
+                    }
+                });
             });
         });
         
-        return aggregatedGroups;
+        return hierarchicalGroups;
     }, [preprocessingList]);
 
     const toggleCompleted = (prep: Preprocessing) => {
-        const matchingItems = preprocessingList.filter(item => 
-            item.instruction === prep.instruction && 
-            item.specific === prep.specific &&
-            item.operation === prep.operation
-        );
+        const newCompleted = !prep.completed;
         
-        const updatedList = preprocessingList.map(item => {
-            if (matchingItems.some(match => match.id === item.id)) {
-                return { ...item, completed: !prep.completed };
+        // Update aggregated list to reflect the change
+        setPreprocessingList(prev => prev.map(item => {
+            if (item.instruction === prep.instruction && 
+                item.specific === prep.specific &&
+                item.operation === prep.operation &&
+                item.ingredient_id === prep.ingredient_id) {
+                return { ...item, completed: newCompleted };
             }
             return item;
-        });
-        
-        setPreprocessingList(updatedList);
+        }));
 
         // Call the callback to update all individual recipe instances
         if (props.onToggleAllPreprocessingInstances) {
-            props.onToggleAllPreprocessingInstances(prep.operation, prep.instruction, prep.specific, !prep.completed);
+            props.onToggleAllPreprocessingInstances(prep.operation, prep.instruction, prep.specific, newCompleted);
         }
     };
 
@@ -82,28 +99,35 @@ export default function PreprocessingList(props: {
                         e.stopPropagation();
                     }}>
                     <div className="flex flex-col gap-4">
-                        <h3 className="text-2xl font-medium text-[#B1454A]">Preprocessing</h3>
+                        {/* <h3 className="text-2xl font-medium text-[#B1454A]">Preprocessing</h3> */}
                         <div className="flex flex-col gap-4">
-                            {Object.entries(groupedPreprocessing).map(([operation, preps]) => (
+                            {Object.entries(groupedPreprocessing).map(([operation, specificGroups]) => (
                                 <div key={operation} className="flex flex-col gap-2">
                                     <h4 className="text-xl font-medium text-[#B1454A] capitalize">{operation}</h4>
                                     <div className="flex flex-col gap-2 ml-4">
-                                        {preps.map((prep) => (
-                                            <div 
-                                                key={prep.id}
-                                                className="flex flex-row items-center gap-4 cursor-pointer"
-                                                onClick={() => toggleCompleted(prep)}
-                                            >
-                                                <div className={`border-4 ${prep.completed ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
-                                                    <div className={`w-4 h-4 ${prep.completed ? 'bg-green-500' : 'bg-transparent'}`} />
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <p className={`text-xl ${prep.completed ? 'line-through text-gray-500' : 'text-[#B1454A]'}`}>
-                                                        {prep.instruction}
-                                                    </p>
-                                                    <p className="text-lg text-gray-600 capitalize">
-                                                        Specific: {prep.specific}
-                                                    </p>
+                                        {Object.entries(specificGroups).map(([specific, ingredientGroups]) => (
+                                            <div key={specific} className="flex flex-col gap-2">
+                                                <h5 className="text-lg font-medium text-[#B1454A] capitalize ml-4">{specific}</h5>
+                                                <div className="flex flex-col gap-2 ml-8">
+                                                    {Object.entries(ingredientGroups).map(([ingredientName, group]) => {
+                                                        const prep = group[0]; // Use the first item which has aggregated data
+                                                        return (
+                                                            <div 
+                                                                key={prep.id}
+                                                                className="flex flex-row items-center gap-4 cursor-pointer"
+                                                                onClick={() => toggleCompleted(prep)}
+                                                            >
+                                                                <div className={`border-4 ${prep.completed ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
+                                                                    <div className={`w-4 h-4 ${prep.completed ? 'bg-green-500' : 'bg-transparent'}`} />
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <p className={`text-xl ${prep.completed ? 'line-through text-gray-500' : 'text-[#B1454A]'}`}>
+                                                                        <span className="font-medium">{ingredientName}:</span> {prep.instruction} {!prep.completed && prep.completedCount && prep.completedCount > 0 && prep.totalCount && prep.totalCount > 0 && prep.completedCount < prep.totalCount ? `| ${prep.completedCount} of ${prep.totalCount} completed` : ''}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         ))}
