@@ -100,7 +100,7 @@ export default function QuantitativeNutrition(props: {
         console.log('onUpdatePreprocessing completed');
     }
 
-    // Aggregate shopping list logic - only mark as purchased when ALL instances are purchased
+    // Aggregate shopping list logic - track purchased amounts and only mark as purchased when ALL instances are purchased
     const aggregateShoppingList = (allIngredients: Ingredient[]): Ingredient[] => {
         const aggregated: { [key: string]: Ingredient[] } = {};
         
@@ -113,18 +113,21 @@ export default function QuantitativeNutrition(props: {
             aggregated[key].push(ingredient);
         });
 
-        // Create aggregated list with "all or nothing" logic
+        // Create aggregated list with purchased amount tracking
         const result: Ingredient[] = [];
         Object.values(aggregated).forEach(group => {
             const allPurchased = group.every(ing => ing.purchased);
             const totalAmount = group.reduce((sum, ing) => sum + ing.amount, 0);
+            const purchasedAmount = group.reduce((sum, ing) => sum + (ing.purchased ? ing.amount : 0), 0);
             
-            // Use the first ingredient as template, but sum amounts and check all purchased
+            // Use the first ingredient as template, but sum amounts and track purchased amounts
             const aggregatedIngredient: Ingredient = {
                 ...group[0],
                 amount: totalAmount,
-                purchased: allPurchased
-            };
+                purchased: allPurchased,
+                // Add a custom property to track purchased amount for display
+                purchasedAmount: purchasedAmount
+            } as Ingredient & { purchasedAmount: number };
             
             result.push(aggregatedIngredient);
         });

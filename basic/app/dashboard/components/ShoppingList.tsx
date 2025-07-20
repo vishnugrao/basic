@@ -4,10 +4,11 @@ import { Ingredient } from "@/types/types";
 import { UUID } from "crypto";
 import { useEffect, useState } from "react";
 
-// Extended type for aggregated ingredients that maintains IDs for syncing
+// Extended type for aggregated ingredients that maintains IDs for syncing and includes purchased amount
 interface AggregatedIngredient extends Omit<Ingredient, 'id' | 'recipe_id'> {
     ids: UUID[];
     recipe_ids: UUID[];
+    purchasedAmount?: number;
 }
 
 
@@ -18,56 +19,30 @@ export default function ShoppingList(props: {
 }) {
     const { closeShoppingList, ingredients } = props;
     
-    // Maintain original list for state updates
-    const [shoppingList, setShoppingList] = useState<Ingredient[]>(ingredients);
-    // Aggregated list for display
+    // Use the pre-aggregated ingredients directly
     const [aggregatedList, setAggregatedList] = useState<AggregatedIngredient[]>([]);
 
     useEffect(() => {
-        // Aggregate ingredients with same name and sum their quantities
-        const aggregated = shoppingList.reduce((acc: AggregatedIngredient[], curr) => {
-            const existing = acc.find(item => item.name.toLowerCase() === curr.name.toLowerCase());
-            if (existing) {
-                existing.amount += curr.amount;
-                existing.ids.push(curr.id);
-                existing.recipe_ids.push(curr.recipe_id);
-                // Only mark as purchased when ALL instances are purchased
-                existing.purchased = existing.purchased && curr.purchased;
-            } else {
-                acc.push({
-                    name: curr.name,
-                    amount: curr.amount,
-                    metric: curr.metric,
-                    purchased: curr.purchased,
-                    user_id: curr.user_id,
-                    created_at: curr.created_at,
-                    updated_at: curr.updated_at,
-                    ids: [curr.id],
-                    recipe_ids: [curr.recipe_id]
-                });
-            }
-            return acc;
-        }, []);
+        // Convert the pre-aggregated ingredients to AggregatedIngredient format
+        const aggregated = ingredients.map(ingredient => ({
+            ...ingredient,
+            ids: [ingredient.id], // Since these are already aggregated, we use the single ID
+            recipe_ids: [ingredient.recipe_id], // Since these are already aggregated, we use the single recipe_id
+            purchasedAmount: (ingredient as Ingredient & { purchasedAmount: number }).purchasedAmount || 0
+        } as AggregatedIngredient));
         setAggregatedList(aggregated);
-    }, [shoppingList]);
+    }, [ingredients]);
 
     const togglePurchased = (ingredient: AggregatedIngredient) => {
         const newPurchased = !ingredient.purchased;
-        
-        // Update all instances of this ingredient in the original list
-        const updatedList = shoppingList.map(item => {
-            if (ingredient.ids.includes(item.id)) {
-                return { ...item, purchased: newPurchased };
-            }
-            return item;
-        });
-        setShoppingList(updatedList);
         
         // Update aggregated list to reflect the change
         setAggregatedList(prev => prev.map(item => {
             if (item.name.toLowerCase() === ingredient.name.toLowerCase() && 
                 item.metric === ingredient.metric) {
-                return { ...item, purchased: newPurchased };
+                // Update purchased amount based on new state
+                const newPurchasedAmount = newPurchased ? item.amount : 0;
+                return { ...item, purchased: newPurchased, purchasedAmount: newPurchasedAmount };
             }
             return item;
         }));
@@ -100,7 +75,7 @@ export default function ShoppingList(props: {
                                     <div className={`w-4 h-4 ${ingredient.purchased ? 'bg-green-500' : 'bg-transparent'}`} />
                                 </div>
                                 <p className={`text-2xl ${ingredient.purchased ? 'line-through text-gray-500' : ''}`}>
-                                    {ingredient.amount} {ingredient.metric} {ingredient.name}
+                                    {ingredient.amount} {ingredient.metric} {ingredient.name} {ingredient.purchasedAmount && (ingredient.purchasedAmount > 0 && ingredient.purchasedAmount < ingredient.amount)  ? `| ${ingredient.purchasedAmount} ${ingredient.metric} Purchased` : ''}
                                 </p>
                             </div>
                         ))}
