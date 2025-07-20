@@ -12,9 +12,11 @@ export default function RecipeDisplay(props: {
     onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>,
     onUpdateOverallShoppingList: () => Promise<void>,
     onUpdateOverallPreprocessingList: () => Promise<void>,
-    onSyncIndividualRecipeUpdate: (updatedIngredients: Ingredient[], updatedPreprocessing: Preprocessing[]) => Promise<void>
+    onSyncIndividualRecipeUpdate: (updatedIngredients: Ingredient[], updatedPreprocessing: Preprocessing[]) => Promise<void>,
+    isSelected?: boolean,
+    onToggleSelection?: () => void
 }) {
-    const { recipe, ingredients, preprocessing, steps, onUpdateSteps, onUpdateShoppingList, onUpdatePreprocessing, onUpdateOverallShoppingList, onUpdateOverallPreprocessingList, onSyncIndividualRecipeUpdate } = props;
+    const { recipe, ingredients, preprocessing, steps, onUpdateSteps, onUpdateShoppingList, onUpdatePreprocessing, onUpdateOverallShoppingList, onUpdateOverallPreprocessingList, onSyncIndividualRecipeUpdate, isSelected = false, onToggleSelection } = props;
     const [recipeData, setRecipeData] = useState<Recipe | null>(recipe);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'ingredients' | 'preprocessing'>('ingredients');
@@ -145,7 +147,20 @@ export default function RecipeDisplay(props: {
         <div className="flex flex-col gap-6 p-6 bg-white rounded-xl border-4 border-current">
             {/* Recipe Title with Buttons */}
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold text-[#B1454A]">{recipeData?.recipe_name}</h2>
+                <div className="flex items-center gap-4">
+                    {/* Selection checkbox */}
+                    {onToggleSelection && (
+                        <div 
+                            className="flex items-center cursor-pointer"
+                            onClick={onToggleSelection}
+                        >
+                            <div className={`border-4 ${isSelected ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
+                                <div className={`w-4 h-4 ${isSelected ? 'bg-green-500' : 'bg-transparent'}`} />
+                            </div>
+                        </div>
+                    )}
+                    <h2 className="text-2xl font-semibold text-[#B1454A]">{recipeData?.recipe_name}</h2>
+                </div>
                 <div className="flex gap-4">
                     <div 
                         onClick={() => {

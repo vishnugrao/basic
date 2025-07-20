@@ -56,6 +56,7 @@ export default function QuantitativeNutrition(props: {
     const [customCuisine, setCustomCuisine] = useState("...");
     const [isPreprocessingOpen, setIsPreprocessingOpen] = useState(false);
     const [loadingRecipes, setLoadingRecipes] = useState<boolean[]>([false, false, false, false]);
+    const [selectedRecipes, setSelectedRecipes] = useState<Set<number>>(new Set());
 
     const toggleShoppingList = () => {
         setIsShoppingListOpen(!isShoppingListOpen);
@@ -222,6 +223,48 @@ export default function QuantitativeNutrition(props: {
         setDailyBreakfastFat(Math.round(0.2 * (fat)));
     }, [tdee, offset, protein, fat])
 
+    // Validate custom cuisine against available cuisines
+    const validateCustomCuisine = (cuisine: string): boolean => {
+        if (!cuisine || cuisine === "..." || cuisine.trim() === "") {
+            return true; // Allow empty/default values
+        }
+        return mealPlan.cuisines.includes(cuisine.trim());
+    };
+
+    // Get cuisines to use for recipe generation
+    const getCuisinesForGeneration = (): string[] => {
+        if (customCuisine && customCuisine !== "..." && customCuisine.trim() !== "") {
+            const trimmedCuisine = customCuisine.trim();
+            if (mealPlan.cuisines.includes(trimmedCuisine)) {
+                return [trimmedCuisine];
+            }
+        }
+        return mealPlan.cuisines;
+    };
+
+    // Toggle recipe selection
+    const toggleRecipeSelection = (index: number) => {
+        setSelectedRecipes(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(index)) {
+                newSet.delete(index);
+            } else {
+                newSet.add(index);
+            }
+            return newSet;
+        });
+    };
+
+    // Select all recipes
+    const selectAllRecipes = () => {
+        setSelectedRecipes(new Set(recipesDetails.map((_, index) => index)));
+    };
+
+    // Deselect all recipes
+    const deselectAllRecipes = () => {
+        setSelectedRecipes(new Set());
+    };
+
     const generateSingleRecipe = async (
         index: number,
         targetCalories: number, 
@@ -231,7 +274,8 @@ export default function QuantitativeNutrition(props: {
         existingRecipeNames: Recipe[],
         existingIngredients: Ingredient[],
         existingPreprocessing: Preprocessing[],
-        existingSteps: Step[]
+        existingSteps: Step[],
+        cuisinesToUse?: string[]
     ) => {
         try {
             const response = await fetch('/api/recipe', {
@@ -242,7 +286,7 @@ export default function QuantitativeNutrition(props: {
                 body: JSON.stringify({
                     userDetails,
                     goalDetails,
-                    cuisines: mealPlan.cuisines,
+                    cuisines: cuisinesToUse || getCuisinesForGeneration(),
                     existingRecipes: existingRecipeNames,
                     calorieTarget: targetCalories,
                     proteinTarget: targetProtein,
@@ -392,6 +436,90 @@ export default function QuantitativeNutrition(props: {
         }
     };
 
+    // Reroll selected recipes
+    const rerollSelectedRecipes = async () => {
+        if (selectedRecipes.size === 0) {
+            console.log('No recipes selected for reroll');
+            return;
+        }
+
+        setIsLoading(true);
+        const selectedIndices = Array.from(selectedRecipes);
+        const loadingStates = [...loadingRecipes];
+        selectedIndices.forEach(index => {
+            loadingStates[index] = true;
+        });
+        setLoadingRecipes(loadingStates);
+
+        try {
+            // Calculate targets for selected recipes
+            const mealTypes: [number, number, number, Date][] = [
+                // Sunday cook - Lunch M,T,W
+                [Math.round(3 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.5 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 1))], 
+                // Sunday cook - Dinner S,M,T,W
+                [Math.round(4 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.5 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 1))], 
+                // Wednesday cook - Lunch T,F,S,S
+                [Math.round(3 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.3 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 4))], 
+                // Thursday cook - Dinner T,F,S
+                [Math.round(4 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.3 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 5))]
+            ];
+
+            const cuisinesToUse = getCuisinesForGeneration();
+            const existingRecipeNames: Recipe[] = [];
+            const existingIngredients: Ingredient[] = [];
+            const existingPreprocessing: Preprocessing[] = [];
+            const existingSteps: Step[] = [];
+
+            // Generate new recipes for selected indices
+            const recipePromises = selectedIndices.map(async (index) => {
+                try {
+                    const mealType = mealTypes[index];
+                    const { recipe, ingredients, preprocessing, steps } = await generateSingleRecipe(
+                        index,
+                        mealType[0],
+                        mealType[1], 
+                        mealType[2],
+                        mealType[3],
+                        existingRecipeNames,
+                        existingIngredients,
+                        existingPreprocessing,
+                        existingSteps,
+                        cuisinesToUse
+                    );
+
+                    // Update loading state for this specific recipe
+                    setLoadingRecipes(prev => {
+                        const newState = [...prev];
+                        newState[index] = false;
+                        return newState;
+                    });
+                    
+                    return { recipe, ingredients, preprocessing, steps, index };
+                } catch (error) {
+                    // Update loading state for this specific recipe even on error
+                    setLoadingRecipes(prev => {
+                        const newState = [...prev];
+                        newState[index] = false;
+                        return newState;
+                    });
+                    throw error;
+                }
+            });
+
+            // Wait for all selected recipes to complete
+            await Promise.all(recipePromises);
+            console.log('Successfully rerolled selected recipes!');
+            
+            // Clear selection after successful reroll
+            setSelectedRecipes(new Set());
+        } catch (error) {
+            console.error(error instanceof Error ? error.message : 'Failed to reroll selected recipes');
+            console.error('Error rerolling selected recipes:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     return (
         <>
             <div className="flex">
@@ -428,6 +556,54 @@ export default function QuantitativeNutrition(props: {
             )}
             {(isLoading || recipesDetails.length > 0) && (
                 <div className="flex flex-col gap-4 pt-20">
+                    {/* First row: Cuisine selection, recipe selection, and reroll selected */}
+                    <div className="flex gap-4 items-center">
+                        <div className="flex">
+                            <p className="text-2xl">Cuisine (Selected):&nbsp;</p>
+                            <div className="flex items-baseline text-2xl">
+                                <InlineInput
+                                    text={String(customCuisine)}
+                                    onSetText={(text: string) => { 
+                                        if (validateCustomCuisine(text)) {
+                                            setCustomCuisine(text);
+                                        } else {
+                                            console.warn(`Invalid cuisine: ${text}. Available cuisines: ${mealPlan.cuisines.join(', ')}`);
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex-auto"></div>
+                        <div className="flex gap-4 items-center">
+                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                                onClick={selectAllRecipes}
+                            >
+                                <p>&nbsp;Select All&nbsp;</p>
+                            </div>
+                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                                onClick={deselectAllRecipes}
+                            >
+                                <p>&nbsp;Deselect All&nbsp;</p>
+                            </div>
+                            <p className="text-xl text-gray-600">
+                                Selected: {selectedRecipes.size} of {recipesDetails.length} recipes
+                            </p>
+                        </div>
+                        <div className="flex-auto"></div>
+                        <div 
+                            className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${isLoading || selectedRecipes.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onClick={() => {
+                                if (!isLoading && selectedRecipes.size > 0) {
+                                    rerollSelectedRecipes();
+                                }
+                            }}
+                            aria-disabled={isLoading || selectedRecipes.size === 0}
+                        >
+                            <p>&nbsp;Re-roll Selected ({selectedRecipes.size})&nbsp;</p>
+                        </div>
+                    </div>
+
+                    {/* Second row: Shopping list, preprocessing, and reroll all */}
                     <div className="flex gap-4">
                         <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                             onClick={toggleShoppingList}
@@ -442,32 +618,21 @@ export default function QuantitativeNutrition(props: {
                         </div>
                         {isPreprocessingOpen && <PreprocessingList closePreprocessingList={closePreprocessingList} preprocessing={aggregatePreprocessingList(preprocessingDetails)} onToggleAllPreprocessingInstances={toggleAllPreprocessingInstances} />}
                         <div className="flex-auto"></div>
-                        <div className="flex w-1/2 gap-4">
-                            <div className="flex">
-                                <p className="text-2xl">Cuisine (Selected):&nbsp;</p>
-                                <div className="flex items-baseline text-2xl">
-                                    <InlineInput
-                                        text={String(customCuisine)}
-                                        onSetText={(text: string) => { setCustomCuisine(text)}}
-                                    />
-                                </div>
-                            </div>
-                            <div className="flex-auto"></div>
-                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit">
-                                <p>&nbsp;Re-roll Selected&nbsp;</p>
-                            </div>
-                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
-                                onClick={() => {
+                        <div 
+                            className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onClick={() => {
+                                if (!isLoading) {
                                     console.log('Re-rolling all recipes');
                                     rollRecipes(
                                         tdee + offset - dailySnackCalories - dailyBreakfastCalories, 
                                         protein - dailyBreakfastProtein, 
                                         fat - dailyBreakfastFat);
                                     // setIsShoppingListOpen(true);
-                                }}
-                            >
-                                <p>&nbsp;Re-roll All&nbsp;</p>
-                            </div>
+                                }
+                            }}
+                            aria-disabled={isLoading}
+                        >
+                            <p>&nbsp;Re-roll All&nbsp;</p>
                         </div>
                     </div>
                     <div className="flex flex-col gap-4">
@@ -490,6 +655,8 @@ export default function QuantitativeNutrition(props: {
                                 onUpdateOverallShoppingList={updateOverallShoppingList}
                                 onUpdateOverallPreprocessingList={updateOverallPreprocessingList}
                                 onSyncIndividualRecipeUpdate={syncIndividualRecipeUpdate}
+                                isSelected={selectedRecipes.has(index)}
+                                onToggleSelection={() => toggleRecipeSelection(index)}
                             />
                         ))}
                     </div>

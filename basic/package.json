@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^7.5.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.48.1",
     "next": "15.1.6",
@@ -16,6 +17,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "shadcn-ui": "^0.9.4",
+    "stripe": "^18.3.0",
     "supabase": "^2.9.6",
     "swapy": "^1.0.5",
     "uuid": "^11.0.5"
