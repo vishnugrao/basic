@@ -79,12 +79,36 @@ export async function handlePaymentSuccess(sessionId: string) {
             
             const supabase = await createClient()
             const amount = parseInt(session.metadata?.amount || '0')
-            const userId = session.metadata?.user_id
 
+            // Get the current authenticated user
+            const { data: { user }, error: authError } = await supabase.auth.getUser()
+            if (authError) {
+                console.error('❌ [STRIPE] Auth error:', authError)
+                throw new Error(`Authentication error: ${authError.message}`)
+            }
+
+            if (!user) {
+                console.error('❌ [STRIPE] User not authenticated')
+                throw new Error('User not authenticated')
+            }
+
+            // Get user details from Users table using email
+            const { data: userDetails, error: userError } = await supabase
+                .from('Users')
+                .select('*')
+                .eq('email', user.email)
+                .single()
+
+            if (userError) {
+                console.error('❌ [STRIPE] Error fetching user details:', userError)
+                throw new Error(`Failed to fetch user details: ${userError.message}`)
+            }
+
+            const userId = userDetails.id // This is the 49f... number
             console.log('🔵 [STRIPE] Payment details:', { amount, userId })
 
-            if (userId && amount > 0) {
-                // Get current wallet
+            if (amount > 0) {
+                // Get the existing wallet (should already exist from user signup)
                 const { data: wallet, error: walletError } = await supabase
                     .from('Wallets')
                     .select('*')
@@ -93,34 +117,34 @@ export async function handlePaymentSuccess(sessionId: string) {
 
                 if (walletError) {
                     console.error('❌ [STRIPE] Error fetching wallet:', walletError)
-                    throw new Error(`Failed to fetch wallet: ${walletError.message}`)
+                    throw new Error(`Failed to fetch wallet: ${walletError.message}. Please ensure you have a valid account.`)
                 }
 
-                if (wallet) {
-                    console.log('🔵 [STRIPE] Current wallet:', wallet)
-                    
-                    // Update wallet with new payment
-                    const { error: updateError } = await supabase
-                        .from('Wallets')
-                        .update({
-                            amount_paid: wallet.amount_paid + amount,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('user_id', userId)
-
-                    if (updateError) {
-                        console.error('❌ [STRIPE] Error updating wallet:', updateError)
-                        throw new Error(`Failed to update wallet: ${updateError.message}`)
-                    }
-
-                    console.log('✅ [STRIPE] Wallet updated successfully')
-                } else {
-                    console.error('❌ [STRIPE] Wallet not found for user:', userId)
-                    throw new Error('Wallet not found')
+                if (!wallet) {
+                    console.error('❌ [STRIPE] No wallet found for user:', userId)
+                    throw new Error('Wallet not found. Please contact support.')
                 }
+
+                console.log('🔵 [STRIPE] Found existing wallet:', wallet)
+
+                // Update wallet with new payment
+                const { error: updateError } = await supabase
+                    .from('Wallets')
+                    .update({
+                        amount_paid: wallet.amount_paid + amount,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('user_id', userId)
+
+                if (updateError) {
+                    console.error('❌ [STRIPE] Error updating wallet:', updateError)
+                    throw new Error(`Failed to update wallet: ${updateError.message}`)
+                }
+
+                console.log('✅ [STRIPE] Wallet updated successfully')
             } else {
-                console.error('❌ [STRIPE] Invalid payment data:', { userId, amount })
-                throw new Error('Invalid payment data')
+                console.error('❌ [STRIPE] Invalid payment amount:', { amount })
+                throw new Error('Invalid payment amount')
             }
         } else {
             console.log('⚠️ [STRIPE] Payment not completed, status:', session.payment_status)

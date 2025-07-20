@@ -11,7 +11,7 @@ export default async function Return({ searchParams }: { searchParams: Promise<{
 
         if (!session_id) {
             console.error('❌ [STRIPE RETURN] No session_id provided')
-            throw new Error('Please provide a valid session_id (`cs_test_...`)')
+            throw new Error('Please provide a valid session_id (`cs_live_...`)')
         }
 
         console.log('🔵 [STRIPE RETURN] Handling payment success for session:', session_id)

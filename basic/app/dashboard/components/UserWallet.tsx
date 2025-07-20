@@ -64,7 +64,7 @@ export default function UserWallet({ wallet }: UserWalletProps) {
                                     : 'hover:bg-[#B1454A] hover:text-white'
                             }`}
                         >
-                            {isLoading ? 'Processing...' : '$2'}
+                            {isLoading ? '$2' : '$2'}
                         </button>
                         <button
                             onClick={() => handleTopUp(5)}
@@ -75,7 +75,7 @@ export default function UserWallet({ wallet }: UserWalletProps) {
                                     : 'hover:bg-[#B1454A] hover:text-white'
                             }`}
                         >
-                            {isLoading ? 'Processing...' : '$5'}
+                            {isLoading ? '$5' : '$5'}
                         </button>
                         <button
                             onClick={() => handleTopUp(10)}
@@ -86,7 +86,7 @@ export default function UserWallet({ wallet }: UserWalletProps) {
                                     : 'hover:bg-[#B1454A] hover:text-white'
                             }`}
                         >
-                            {isLoading ? 'Processing...' : '$10'}
+                            {isLoading ? '$10' : '$10'}
                         </button>
                     </div>
                     <div className="flex items-center gap-2">
