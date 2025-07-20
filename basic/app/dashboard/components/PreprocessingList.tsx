@@ -1,70 +1,35 @@
 'use client'
 
 import { Preprocessing } from "@/types/types";
-import { UUID } from "crypto";
-import { useEffect, useState } from "react";
-
-// Extended type for aggregated preprocessing that maintains IDs for syncing
-interface AggregatedPreprocessing extends Omit<Preprocessing, 'id' | 'recipe_id'> {
-    ids: UUID[];
-    recipe_ids: UUID[];
-    completed: boolean;
-}
+import { useEffect, useState, useMemo } from "react";
 
 export default function PreprocessingList(props: { closePreprocessingList: (preprocessing: Preprocessing[]) => void, preprocessing: Preprocessing[] }) {
     const { closePreprocessingList, preprocessing } = props;
     
     // Maintain original list for state updates
     const [preprocessingList, setPreprocessingList] = useState<Preprocessing[]>(preprocessing);
-    // Aggregated list for display
-    const [aggregatedList, setAggregatedList] = useState<AggregatedPreprocessing[]>([]);
 
     useEffect(() => {
-        // Aggregate preprocessing with same operation and specific
-        const aggregated = preprocessingList.reduce((acc: AggregatedPreprocessing[], curr) => {
-            const key = `${curr.operation}-${curr.specific}`;
-            const existing = acc.find(item => `${item.operation}-${item.specific}` === key);
-            if (existing) {
-                existing.ids.push(curr.id);
-                existing.recipe_ids.push(curr.recipe_id);
-                // If any instance is completed, mark all as completed
-                existing.completed = existing.completed || curr.completed || false;
-            } else {
-                acc.push({
-                    operation: curr.operation,
-                    specific: curr.specific,
-                    instruction: curr.instruction,
-                    user_id: curr.user_id,
-                    created_at: curr.created_at,
-                    updated_at: curr.updated_at,
-                    ids: [curr.id],
-                    recipe_ids: [curr.recipe_id],
-                    completed: curr.completed || false
-                });
+        setPreprocessingList(preprocessing);
+    }, [preprocessing]);
+
+    // Group preprocessing by operation
+    const groupedPreprocessing = useMemo(() => {
+        const groups: { [key: string]: Preprocessing[] } = {};
+        preprocessingList.forEach(prep => {
+            if (!groups[prep.operation]) {
+                groups[prep.operation] = [];
             }
-            return acc;
-        }, []);
-        setAggregatedList(aggregated);
+            groups[prep.operation].push(prep);
+        });
+        return groups;
     }, [preprocessingList]);
 
-    const toggleCompleted = (preprocessing: AggregatedPreprocessing) => {
-        const newCompleted = !preprocessing.completed;
-        // Update all instances of this preprocessing in the original list
-        const updatedList = preprocessingList.map(item => {
-            if (preprocessing.ids.includes(item.id)) {
-                return { ...item, completed: newCompleted };
-            }
-            return item;
-        });
+    const toggleCompleted = (prep: Preprocessing) => {
+        const updatedList = preprocessingList.map(item => 
+            item.id === prep.id ? { ...item, completed: !item.completed } : item
+        );
         setPreprocessingList(updatedList);
-        setAggregatedList(aggregatedList.map(item => {
-            for (const id of preprocessing.ids) {
-                if (item.ids.includes(id)) {
-                    return { ...item, completed: newCompleted };
-                }
-            }
-            return item;
-        }));
     };
 
     return (
@@ -79,26 +44,36 @@ export default function PreprocessingList(props: { closePreprocessingList: (prep
                         e.stopPropagation();
                     }}>
                     <div className="flex flex-col gap-4">
-                        {aggregatedList.map((preprocessing, index) => (
-                            <div 
-                                key={index}
-                                className="flex flex-row items-center gap-4 cursor-pointer"
-                                onClick={() => toggleCompleted(preprocessing)}
-                            >
-                                <div className={`border-4 ${preprocessing.completed ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
-                                    <div className={`w-4 h-4 ${preprocessing.completed ? 'bg-green-500' : 'bg-transparent'}`} />
+                        <h3 className="text-2xl font-medium text-[#B1454A]">Preprocessing</h3>
+                        <div className="flex flex-col gap-4">
+                            {Object.entries(groupedPreprocessing).map(([operation, preps]) => (
+                                <div key={operation} className="flex flex-col gap-2">
+                                    <h4 className="text-xl font-medium text-[#B1454A] capitalize">{operation}</h4>
+                                    <div className="flex flex-col gap-2 ml-4">
+                                        {preps.map((prep) => (
+                                            <div 
+                                                key={prep.id}
+                                                className="flex flex-row items-center gap-4 cursor-pointer"
+                                                onClick={() => toggleCompleted(prep)}
+                                            >
+                                                <div className={`border-4 ${prep.completed ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
+                                                    <div className={`w-4 h-4 ${prep.completed ? 'bg-green-500' : 'bg-transparent'}`} />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <p className={`text-xl ${prep.completed ? 'line-through text-gray-500' : 'text-[#B1454A]'}`}>
+                                                        {prep.instruction}
+                                                    </p>
+                                                    <p className="text-lg text-gray-600 capitalize">
+                                                        Specific: {prep.specific}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className={`flex flex-col ${preprocessing.completed ? 'line-through text-gray-500' : ''}`}>
-                                    <p className="text-xl font-semibold">
-                                        {preprocessing.operation}: {preprocessing.specific}
-                                    </p>
-                                    <p className="text-lg">
-                                        {preprocessing.instruction}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                        {aggregatedList.length === 0 && (
+                            ))}
+                        </div>
+                        {Object.keys(groupedPreprocessing).length === 0 && (
                             <p className="text-2xl text-gray-500">No preprocessing tasks</p>
                         )}
                     </div>
