@@ -1,6 +1,6 @@
 'use client'
 
-import { Goal, Ingredient, MealPlan, Recipe, RecipeWithData, User, Preprocessing, Step } from "@/types/types";
+import { Goal, Ingredient, MealPlan, Recipe, RecipeWithData, User, Preprocessing, Step, UserWallet } from "@/types/types";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import InlineInput from "./InlineInput";
 import ShoppingList from "./ShoppingList";
@@ -38,12 +38,19 @@ export default function QuantitativeNutrition(props: {
     preprocessingDetails: Preprocessing[], 
     stepsDetails: Step[], 
     onUpdateAll: (updates: Recipe[]) => Promise<void>, 
-    onAppend: (addition: RecipeWithData) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, onUpdateSteps: (updates: Step[]) => Promise<void>
+    onAppend: (addition: RecipeWithData) => Promise<void>, 
+    isShoppingListOpen: boolean, 
+    setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, 
+    onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, 
+    onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, 
+    onUpdateSteps: (updates: Step[]) => Promise<void>,
+    onWalletUpdate: (cost: number, requestsMade: number) => Promise<void>,
+    wallet: UserWallet
 }) {
     const { userDetails, goalDetails, mealPlan, recipesDetails, 
         ingredientsDetails, preprocessingDetails, stepsDetails, 
         isShoppingListOpen, setIsShoppingListOpen, onUpdateShoppingList, 
-        onUpdatePreprocessing, onUpdateSteps } = props;
+        onUpdatePreprocessing, onUpdateSteps, onWalletUpdate, wallet } = props;
     const [tdee, setTDEE] = useState(0);
     const [offset, setOffset] = useState(0);
     const [protein, setProtein] = useState(0);
@@ -57,6 +64,22 @@ export default function QuantitativeNutrition(props: {
     const [isPreprocessingOpen, setIsPreprocessingOpen] = useState(false);
     const [loadingRecipes, setLoadingRecipes] = useState<boolean[]>([false, false, false, false]);
     const [selectedRecipes, setSelectedRecipes] = useState<Set<number>>(new Set());
+    const [isInsufficientBalanceOpen, setIsInsufficientBalanceOpen] = useState(false);
+    const [requiredAmount, setRequiredAmount] = useState(0);
+
+    // Calculate current balance
+    const currentBalance = wallet.amount_paid - wallet.amount_used;
+
+    // Check if user has sufficient balance for an operation
+    const checkBalance = (requiredCost: number): boolean => {
+        return currentBalance >= requiredCost;
+    };
+
+    // Show insufficient balance popup
+    const showInsufficientBalancePopup = (cost: number) => {
+        setRequiredAmount(cost);
+        setIsInsufficientBalanceOpen(true);
+    };
 
     const toggleShoppingList = () => {
         setIsShoppingListOpen(!isShoppingListOpen);
@@ -362,6 +385,13 @@ export default function QuantitativeNutrition(props: {
     };
 
     const rollRecipes = async (targetCalories: number, targetProtein: number, targetFat: number) => {
+        // Check balance before proceeding (4 recipes = 12 cents)
+        const requiredCost = 0.12;
+        if (!checkBalance(requiredCost)) {
+            showInsufficientBalancePopup(requiredCost);
+            return;
+        }
+
         setIsLoading(true);
         setLoadingRecipes([true, true, true, true]);
 
@@ -427,6 +457,10 @@ export default function QuantitativeNutrition(props: {
 
             // Wait for all recipes to complete
             await Promise.all(recipePromises);
+            
+            // Update wallet after successful generation (4 recipes = 12 cents)
+            await onWalletUpdate(0.12, 4);
+            
             console.log('Successfully generated new meal plan!');
         } catch (error) {
             console.error(error instanceof Error ? error.message : 'Failed to generate meal plan');
@@ -440,6 +474,13 @@ export default function QuantitativeNutrition(props: {
     const rerollSelectedRecipes = async () => {
         if (selectedRecipes.size === 0) {
             console.log('No recipes selected for reroll');
+            return;
+        }
+
+        // Check balance before proceeding (selected recipes * 3 cents each)
+        const requiredCost = selectedRecipes.size * 0.03;
+        if (!checkBalance(requiredCost)) {
+            showInsufficientBalancePopup(requiredCost);
             return;
         }
 
@@ -508,6 +549,11 @@ export default function QuantitativeNutrition(props: {
 
             // Wait for all selected recipes to complete
             await Promise.all(recipePromises);
+            
+            // Update wallet after successful reroll (selected recipes * 3 cents each)
+            const selectedCount = selectedRecipes.size;
+            await onWalletUpdate(selectedCount * 0.03, selectedCount);
+            
             console.log('Successfully rerolled selected recipes!');
             
             // Clear selection after successful reroll
@@ -659,6 +705,43 @@ export default function QuantitativeNutrition(props: {
                                 onToggleSelection={() => toggleRecipeSelection(index)}
                             />
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Insufficient Balance Dialog */}
+            {isInsufficientBalanceOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 max-w-md mx-4 border-4 border-current">
+                        <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-2xl font-bold">Insufficient Balance</h3>
+                            <button
+                                onClick={() => setIsInsufficientBalanceOpen(false)}
+                                className="text-2xl border-2 border-current rounded-full w-8 h-8 flex items-center justify-center cursor-pointer hover:bg-[#B1454A] hover:text-white transition-colors"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div className="space-y-4 text-lg">
+                            <p>
+                                You don&apos;t have enough balance to perform this operation.
+                            </p>
+                            <div className="space-y-2">
+                                <p><strong>Required amount:</strong> ${requiredAmount.toFixed(2)}</p>
+                                <p><strong>Current balance:</strong> ${currentBalance.toFixed(2)}</p>
+                            </div>
+                            <p>
+                                Please top up your wallet to continue generating recipes.
+                            </p>
+                        </div>
+                        <div className="mt-6 flex justify-end">
+                            <button
+                                onClick={() => setIsInsufficientBalanceOpen(false)}
+                                className="border-2 border-current rounded-lg cursor-pointer text-xl px-4 py-2 hover:bg-[#B1454A] hover:text-white transition-colors"
+                            >
+                                Got it
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

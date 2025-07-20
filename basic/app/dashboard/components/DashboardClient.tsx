@@ -6,7 +6,7 @@ import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients, updateWallet } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -53,9 +53,22 @@ export default function DashboardClient({
     const [ingredientsDetails, setIngredientsDetails] = useState<Ingredient[]>(initialIngredientDetails);
     const [preprocessingDetails, setPreprocessingDetails] = useState<Preprocessing[]>(initialPreprocessingDetails);
     const [stepsDetails, setStepsDetails] = useState<Step[]>(initialStepsDetails);
-    const [wallet] = useState<UserWalletType>(initialWallet);
+    const [wallet, setWallet] = useState<UserWalletType>(initialWallet);
     
     const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
+
+    // Function to update wallet when recipes are generated
+    const handleWalletUpdate = async (cost: number, requestsMade: number) => {
+        const updatedWallet = {
+            ...wallet,
+            amount_used: wallet.amount_used + cost,
+            requests_made: wallet.requests_made + requestsMade,
+            updated_at: new Date().toISOString()
+        };
+        
+        setWallet(updatedWallet);
+        await updateWallet(updatedWallet);
+    };
 
     const handleUserUpdate = async (updates: Partial<User>) => {
         const updatedUser = { ...userDetails, ...updates, updated_at: new Date().toISOString() };
@@ -192,6 +205,8 @@ export default function DashboardClient({
                     onUpdateShoppingList={handleIngredientsUpdate}
                     onUpdatePreprocessing={handlePreprocessingUpdate}
                     onUpdateSteps={handleStepsUpdate}
+                    onWalletUpdate={handleWalletUpdate}
+                    wallet={wallet}
                 />
             </div>
         </div>
