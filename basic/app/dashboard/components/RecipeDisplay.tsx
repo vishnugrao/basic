@@ -164,7 +164,7 @@ export default function RecipeDisplay(props: {
                             </div>
                             <div 
                                 onClick={handleUpdateSteps}
-                                className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                                className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit hidden"
                             >
                                 <p>&nbsp;Update Steps&nbsp;</p>
                             </div>
@@ -222,7 +222,7 @@ export default function RecipeDisplay(props: {
                                     </div>
                                     <div 
                                         onClick={handleUpdateShoppingList}
-                                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit mt-4"
+                                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit mt-4 hidden"
                                     >
                                         <p>&nbsp;Update Shopping List&nbsp;</p>
                                     </div>
@@ -262,7 +262,7 @@ export default function RecipeDisplay(props: {
                                     </div>
                                     <div 
                                         onClick={handleUpdatePreprocessing}
-                                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit mt-4"
+                                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit mt-4 hidden"
                                     >
                                         <p>&nbsp;Update Preprocessing&nbsp;</p>
                                     </div>
