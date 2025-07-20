@@ -9,9 +9,12 @@ export default function RecipeDisplay(props: {
     recipesDetails: Recipe[],
     onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, 
     onUpdateSteps: (updates: Step[]) => Promise<void>,
-    onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>
+    onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>,
+    onUpdateOverallShoppingList: () => Promise<void>,
+    onUpdateOverallPreprocessingList: () => Promise<void>,
+    onSyncIndividualRecipeUpdate: (updatedIngredients: Ingredient[], updatedPreprocessing: Preprocessing[]) => Promise<void>
 }) {
-    const { recipe, ingredients, preprocessing, steps, onUpdateSteps, onUpdateShoppingList, onUpdatePreprocessing } = props;
+    const { recipe, ingredients, preprocessing, steps, onUpdateSteps, onUpdateShoppingList, onUpdatePreprocessing, onUpdateOverallShoppingList, onUpdateOverallPreprocessingList, onSyncIndividualRecipeUpdate } = props;
     const [recipeData, setRecipeData] = useState<Recipe | null>(recipe);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'ingredients' | 'preprocessing'>('ingredients');
@@ -53,6 +56,11 @@ export default function RecipeDisplay(props: {
         return filtered;
     }, [localPreprocessing, recipe.id]);
 
+    // Check if recipe data is still loading (no ingredients or preprocessing yet)
+    const isRecipeLoading = useMemo(() => {
+        return recipeIngredients.length === 0 && recipePreprocessing.length === 0;
+    }, [recipeIngredients.length, recipePreprocessing.length]);
+
     // Group preprocessing by operation
     const groupedPreprocessing = useMemo(() => {
         const groups: { [key: string]: Preprocessing[] } = {};
@@ -65,31 +73,65 @@ export default function RecipeDisplay(props: {
         return groups;
     }, [recipePreprocessing]);
 
-    const handleIngredientToggle = (ingredient: Ingredient) => {
+    const handleIngredientToggle = async (ingredient: Ingredient) => {
         const updatedIngredients = localIngredients.map(ing => 
             ing.id === ingredient.id ? { ...ing, purchased: !ing.purchased } : ing
         );
         setLocalIngredients(updatedIngredients);
+        
+        // Check if all instances of this ingredient across all recipes have the same state
+        const allInstances = ingredients.filter(ing => 
+            ing.name.toLowerCase() === ingredient.name.toLowerCase() && 
+            ing.metric === ingredient.metric
+        );
+        
+        const allHaveSameState = allInstances.every(ing => ing.purchased === updatedIngredients.find(u => u.id === ing.id)?.purchased);
+        
+        // Only update overall state if all instances agree
+        if (allHaveSameState) {
+            await onSyncIndividualRecipeUpdate(updatedIngredients, localPreprocessing);
+        } else {
+            // Just update the individual recipe data without affecting overall state
+            await onUpdateShoppingList(updatedIngredients);
+        }
     };
 
-    const handlePreprocessingToggle = (prep: Preprocessing) => {
+    const handlePreprocessingToggle = async (prep: Preprocessing) => {
         const updatedPreprocessing = localPreprocessing.map(p => 
             p.id === prep.id ? { ...p, completed: !p.completed } : p
         );
         setLocalPreprocessing(updatedPreprocessing);
+        
+        // Check if all instances of this preprocessing across all recipes have the same state
+        const allInstances = preprocessing.filter(p => 
+            p.operation === prep.operation && 
+            p.instruction === prep.instruction && 
+            p.specific === prep.specific
+        );
+        
+        const allHaveSameState = allInstances.every(p => p.completed === updatedPreprocessing.find(u => u.id === p.id)?.completed);
+        
+        // Only update overall state if all instances agree
+        if (allHaveSameState) {
+            await onSyncIndividualRecipeUpdate(localIngredients, updatedPreprocessing);
+        } else {
+            // Just update the individual recipe data without affecting overall state
+            await onUpdatePreprocessing(updatedPreprocessing);
+        }
     };
 
-    // Atomic update handlers
-    const handleUpdateShoppingList = async () => {
-        await onUpdateShoppingList(localIngredients);
-    };
-
+    // Update handlers
     const handleUpdateSteps = async () => {
         await onUpdateSteps(steps);
     };
 
-    const handleUpdatePreprocessing = async () => {
-        await onUpdatePreprocessing(localPreprocessing);
+    // Overall update handlers
+    const handleUpdateOverallShoppingList = async () => {
+        await onUpdateOverallShoppingList();
+    };
+
+    const handleUpdateOverallPreprocessingList = async () => {
+        await onUpdateOverallPreprocessingList();
     };
 
     // Handle drawer close with atomic updates - following QuantitativeNutrition pattern
@@ -139,7 +181,16 @@ export default function RecipeDisplay(props: {
                 {/* Main Content - 50% width */}
                 <div className="flex-1">
                     {/* Steps Section - Always Visible */}
-                    {recipeSteps.length > 0 && (
+                    {isRecipeLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="flex flex-col items-center space-y-4">
+                                <div className="w-8 h-8 border-2 border-gray-200 border-t-[#B1454A] rounded-full animate-spin"></div>
+                                <p className="text-gray-600 text-sm font-medium">
+                                    Loading instructions...
+                                </p>
+                            </div>
+                        </div>
+                    ) : recipeSteps.length > 0 && (
                         <div className="flex flex-col gap-3">
                             <h3 className="text-2xl font-medium text-[#B1454A]">Instructions</h3>
                             <div className="flex flex-col gap-3">
@@ -204,68 +255,94 @@ export default function RecipeDisplay(props: {
                             {activeTab === 'ingredients' && (
                                 <div className="flex flex-col gap-3">
                                     <h3 className="text-2xl font-medium text-[#B1454A]">Ingredients</h3>
-                                    <div className="flex flex-col gap-2">
-                                        {recipeIngredients.map((ingredient) => (
-                                            <div 
-                                                key={ingredient.id}
-                                                className="flex flex-row items-center gap-4 cursor-pointer"
-                                                onClick={() => handleIngredientToggle(ingredient)}
-                                            >
-                                                <div className={`border-4 ${ingredient.purchased ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
-                                                    <div className={`w-4 h-4 ${ingredient.purchased ? 'bg-green-500' : 'bg-transparent'}`} />
-                                                </div>
-                                                <p className={`text-2xl ${ingredient.purchased ? 'line-through text-gray-500' : 'text-[#B1454A]'}`}>
-                                                    {ingredient.amount} {ingredient.metric} {ingredient.name}
+                                    {isRecipeLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <div className="flex flex-col items-center space-y-4">
+                                                <div className="w-8 h-8 border-2 border-gray-200 border-t-[#B1454A] rounded-full animate-spin"></div>
+                                                <p className="text-gray-600 text-sm font-medium">
+                                                    Loading ingredients...
                                                 </p>
                                             </div>
-                                        ))}
-                                    </div>
-                                    <div 
-                                        onClick={handleUpdateShoppingList}
-                                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit mt-4 hidden"
-                                    >
-                                        <p>&nbsp;Update Shopping List&nbsp;</p>
-                                    </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex flex-col gap-2">
+                                                {recipeIngredients.map((ingredient) => (
+                                                    <div 
+                                                        key={ingredient.id}
+                                                        className="flex flex-row items-center gap-4 cursor-pointer"
+                                                        onClick={() => handleIngredientToggle(ingredient)}
+                                                    >
+                                                        <div className={`border-4 ${ingredient.purchased ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
+                                                            <div className={`w-4 h-4 ${ingredient.purchased ? 'bg-green-500' : 'bg-transparent'}`} />
+                                                        </div>
+                                                        <p className={`text-2xl ${ingredient.purchased ? 'line-through text-gray-500' : 'text-[#B1454A]'}`}>
+                                                            {ingredient.amount} {ingredient.metric} {ingredient.name}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div 
+                                                onClick={handleUpdateOverallShoppingList}
+                                                className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit mt-4"
+                                            >
+                                                <p>&nbsp;Update Shopping List&nbsp;</p>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             )}
 
                             {activeTab === 'preprocessing' && (
                                 <div className="flex flex-col gap-3">
                                     <h3 className="text-2xl font-medium text-[#B1454A]">Preprocessing</h3>
-                                    <div className="flex flex-col gap-4">
-                                        {Object.entries(groupedPreprocessing).map(([operation, preps]) => (
-                                            <div key={operation} className="flex flex-col gap-2">
-                                                <h4 className="text-xl font-medium text-[#B1454A] capitalize">{operation}</h4>
-                                                <div className="flex flex-col gap-2 ml-4">
-                                                    {preps.map((prep) => (
-                                                        <div 
-                                                            key={prep.id}
-                                                            className="flex flex-row items-center gap-4 cursor-pointer"
-                                                            onClick={() => handlePreprocessingToggle(prep)}
-                                                        >
-                                                            <div className={`border-4 ${prep.completed ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
-                                                                <div className={`w-4 h-4 ${prep.completed ? 'bg-green-500' : 'bg-transparent'}`} />
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <p className={`text-xl ${prep.completed ? 'line-through text-gray-500' : 'text-[#B1454A]'}`}>
-                                                                    {prep.instruction}
-                                                                </p>
-                                                                <p className="text-lg text-gray-600 capitalize">
-                                                                    Specific: {prep.specific}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
+                                    {isRecipeLoading ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <div className="flex flex-col items-center space-y-4">
+                                                <div className="w-8 h-8 border-2 border-gray-200 border-t-[#B1454A] rounded-full animate-spin"></div>
+                                                <p className="text-gray-600 text-sm font-medium">
+                                                    Loading preprocessing...
+                                                </p>
                                             </div>
-                                        ))}
-                                    </div>
-                                    <div 
-                                        onClick={handleUpdatePreprocessing}
-                                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit mt-4 hidden"
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="flex flex-col gap-4">
+                                                {Object.entries(groupedPreprocessing).map(([operation, preps]) => (
+                                                    <div key={operation} className="flex flex-col gap-2">
+                                                        <h4 className="text-xl font-medium text-[#B1454A] capitalize">{operation}</h4>
+                                                        <div className="flex flex-col gap-2 ml-4">
+                                                            {preps.map((prep) => (
+                                                                <div 
+                                                                    key={prep.id}
+                                                                    className="flex flex-row items-center gap-4 cursor-pointer"
+                                                                    onClick={() => handlePreprocessingToggle(prep)}
+                                                                >
+                                                                    <div className={`border-4 ${prep.completed ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
+                                                                        <div className={`w-4 h-4 ${prep.completed ? 'bg-green-500' : 'bg-transparent'}`} />
+                                                                    </div>
+                                                                    <div className="flex flex-col">
+                                                                        <p className={`text-xl ${prep.completed ? 'line-through text-gray-500' : 'text-[#B1454A]'}`}>
+                                                                            {prep.instruction}
+                                                                        </p>
+                                                                        <p className="text-lg text-gray-600 capitalize">
+                                                                            Specific: {prep.specific}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                                                                <div 
+                                        onClick={handleUpdateOverallPreprocessingList}
+                                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit mt-4"
                                     >
-                                        <p>&nbsp;Update Preprocessing&nbsp;</p>
+                                        <p>&nbsp;Update Preprocessing List&nbsp;</p>
                                     </div>
+                                        </>
+                                    )}
                                 </div>
                             )}
                         </div>

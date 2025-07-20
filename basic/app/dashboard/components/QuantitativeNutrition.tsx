@@ -61,20 +61,133 @@ export default function QuantitativeNutrition(props: {
         setIsShoppingListOpen(!isShoppingListOpen);
     }
 
-    const closeShoppingList = async (ingredients: Ingredient[]) => {
+    const closeShoppingList = async () => {
         setIsShoppingListOpen(false);
-        await onUpdateShoppingList(ingredients);
+        // The overall list is now managed separately from individual recipe data
+    }
+
+    // Toggle all instances of an ingredient across all recipes
+    const toggleAllInstances = async (name: string, metric: string, purchased: boolean) => {
+        const updatedIngredients = ingredientsDetails.map(ingredient => {
+            if (ingredient.name.toLowerCase() === name.toLowerCase() && ingredient.metric === metric) {
+                return { ...ingredient, purchased };
+            }
+            return ingredient;
+        });
+        
+        await onUpdateShoppingList(updatedIngredients);
+    }
+
+    // Toggle all instances of a preprocessing step across all recipes
+    const toggleAllPreprocessingInstances = async (operation: string, instruction: string, specific: string, completed: boolean) => {
+        const updatedPreprocessing = preprocessingDetails.map(prep => {
+            if (prep.operation === operation && prep.instruction === instruction && prep.specific === specific) {
+                return { ...prep, completed };
+            }
+            return prep;
+        });
+        
+        await onUpdatePreprocessing(updatedPreprocessing);
     }
 
     const togglePreprocessing = () => {
         setIsPreprocessingOpen(!isPreprocessingOpen);
     }
 
-    const closePreprocessingList = async (preprocessing: Preprocessing[]) => {
+    const closePreprocessingList = async () => {
         setIsPreprocessingOpen(false);
-        await onUpdatePreprocessing(preprocessing);
+        // The overall list is now managed separately from individual recipe data
         console.log('onUpdatePreprocessing completed');
     }
+
+    // Aggregate shopping list logic - only mark as purchased when ALL instances are purchased
+    const aggregateShoppingList = (allIngredients: Ingredient[]): Ingredient[] => {
+        const aggregated: { [key: string]: Ingredient[] } = {};
+        
+        // Group ingredients by name and metric
+        allIngredients.forEach(ingredient => {
+            const key = `${ingredient.name.toLowerCase()}-${ingredient.metric}`;
+            if (!aggregated[key]) {
+                aggregated[key] = [];
+            }
+            aggregated[key].push(ingredient);
+        });
+
+        // Create aggregated list with "all or nothing" logic
+        const result: Ingredient[] = [];
+        Object.values(aggregated).forEach(group => {
+            const allPurchased = group.every(ing => ing.purchased);
+            const totalAmount = group.reduce((sum, ing) => sum + ing.amount, 0);
+            
+            // Use the first ingredient as template, but sum amounts and check all purchased
+            const aggregatedIngredient: Ingredient = {
+                ...group[0],
+                amount: totalAmount,
+                purchased: allPurchased
+            };
+            
+            result.push(aggregatedIngredient);
+        });
+
+        return result;
+    };
+
+    // Aggregate preprocessing logic - only mark as completed when ALL instances are completed
+    const aggregatePreprocessingList = (allPreprocessing: Preprocessing[]): Preprocessing[] => {
+        const aggregated: { [key: string]: Preprocessing[] } = {};
+        
+        // Group preprocessing by operation and instruction
+        allPreprocessing.forEach(prep => {
+            const key = `${prep.operation}-${prep.instruction}-${prep.specific}`;
+            if (!aggregated[key]) {
+                aggregated[key] = [];
+            }
+            aggregated[key].push(prep);
+        });
+
+        // Create aggregated list with "all or nothing" logic
+        const result: Preprocessing[] = [];
+        Object.values(aggregated).forEach(group => {
+            const allCompleted = group.every(prep => prep.completed);
+            
+            // Use the first preprocessing as template, but check all completed
+            const aggregatedPreprocessing: Preprocessing = {
+                ...group[0],
+                completed: allCompleted
+            };
+            
+            result.push(aggregatedPreprocessing);
+        });
+
+        return result;
+    };
+
+    // Update individual recipe data (keep as individual items)
+    const updateIndividualRecipeData = async (updatedIngredients: Ingredient[], updatedPreprocessing: Preprocessing[]) => {
+        await onUpdateShoppingList(updatedIngredients);
+        await onUpdatePreprocessing(updatedPreprocessing);
+    };
+
+    // Update overall shopping list based on individual recipe states
+    const updateOverallShoppingList = async () => {
+        // The overall list is now updated automatically by passing aggregated data to the components
+        // No need to manually update since the components receive aggregated data directly
+    };
+
+    // Update overall preprocessing list based on individual recipe states
+    const updateOverallPreprocessingList = async () => {
+        // The overall list is now updated automatically by passing aggregated data to the components
+        // No need to manually update since the components receive aggregated data directly
+    };
+
+    // Sync individual recipe updates with overall state
+    const syncIndividualRecipeUpdate = async (updatedIngredients: Ingredient[], updatedPreprocessing: Preprocessing[]) => {
+        // Update the individual recipe data (keep as individual items)
+        await updateIndividualRecipeData(updatedIngredients, updatedPreprocessing);
+        
+        // Note: The overall lists will be updated automatically when the individual data changes
+        // since they are derived from the individual recipe data
+    };
 
     useEffect(() =>  {
         const bmrConstant = userDetails.gender == "Male" ? 5 : -161;
@@ -207,6 +320,9 @@ export default function QuantitativeNutrition(props: {
 
         try {
             await props.onUpdateAll([]);
+            await onUpdateShoppingList([]);
+            await onUpdatePreprocessing([]);
+            await onUpdateSteps([]);
 
             if (!mealPlan?.cuisines) {
                 throw new Error('Meal plan or cuisines not available');
@@ -315,13 +431,13 @@ export default function QuantitativeNutrition(props: {
                         >
                             <p>&nbsp;Shopping List&nbsp;</p>
                         </div>
-                        {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={ingredientsDetails} />}
+                        {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={aggregateShoppingList(ingredientsDetails)} onToggleAllInstances={toggleAllInstances} />}
                         <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                             onClick={togglePreprocessing}
                         >
                             <p>&nbsp;Preprocessing&nbsp;</p>
                         </div>
-                        {isPreprocessingOpen && <PreprocessingList closePreprocessingList={closePreprocessingList} preprocessing={preprocessingDetails} />}
+                        {isPreprocessingOpen && <PreprocessingList closePreprocessingList={closePreprocessingList} preprocessing={aggregatePreprocessingList(preprocessingDetails)} onToggleAllPreprocessingInstances={toggleAllPreprocessingInstances} />}
                         <div className="flex-auto"></div>
                         <div className="flex w-1/2 gap-4">
                             <div className="flex">
@@ -358,7 +474,20 @@ export default function QuantitativeNutrition(props: {
                         )}
                         {/* Show actual recipes */}
                         {recipesDetails.map((recipe, index) => (
-                            <RecipeDisplay key={index} recipe={recipe} ingredients={ingredientsDetails} preprocessing={preprocessingDetails} steps={stepsDetails} recipesDetails={recipesDetails} onUpdatePreprocessing={onUpdatePreprocessing} onUpdateSteps={onUpdateSteps} onUpdateShoppingList={onUpdateShoppingList} />
+                            <RecipeDisplay 
+                                key={index} 
+                                recipe={recipe} 
+                                ingredients={ingredientsDetails} 
+                                preprocessing={preprocessingDetails} 
+                                steps={stepsDetails} 
+                                recipesDetails={recipesDetails} 
+                                onUpdatePreprocessing={onUpdatePreprocessing} 
+                                onUpdateSteps={onUpdateSteps} 
+                                onUpdateShoppingList={onUpdateShoppingList}
+                                onUpdateOverallShoppingList={updateOverallShoppingList}
+                                onUpdateOverallPreprocessingList={updateOverallPreprocessingList}
+                                onSyncIndividualRecipeUpdate={syncIndividualRecipeUpdate}
+                            />
                         ))}
                     </div>
                 </div>

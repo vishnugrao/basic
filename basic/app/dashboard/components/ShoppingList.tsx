@@ -11,7 +11,11 @@ interface AggregatedIngredient extends Omit<Ingredient, 'id' | 'recipe_id'> {
 }
 
 
-export default function ShoppingList(props: { closeShoppingList: (ingredients: Ingredient[]) => void, ingredients: Ingredient[] }) {
+export default function ShoppingList(props: { 
+    closeShoppingList: () => void, 
+    ingredients: Ingredient[],
+    onToggleAllInstances?: (name: string, metric: string, purchased: boolean) => void
+}) {
     const { closeShoppingList, ingredients } = props;
     
     // Maintain original list for state updates
@@ -27,8 +31,8 @@ export default function ShoppingList(props: { closeShoppingList: (ingredients: I
                 existing.amount += curr.amount;
                 existing.ids.push(curr.id);
                 existing.recipe_ids.push(curr.recipe_id);
-                // If any instance is purchased, mark all as purchased
-                existing.purchased = existing.purchased || curr.purchased;
+                // Only mark as purchased when ALL instances are purchased
+                existing.purchased = existing.purchased && curr.purchased;
             } else {
                 acc.push({
                     name: curr.name,
@@ -49,6 +53,7 @@ export default function ShoppingList(props: { closeShoppingList: (ingredients: I
 
     const togglePurchased = (ingredient: AggregatedIngredient) => {
         const newPurchased = !ingredient.purchased;
+        
         // Update all instances of this ingredient in the original list
         const updatedList = shoppingList.map(item => {
             if (ingredient.ids.includes(item.id)) {
@@ -57,21 +62,27 @@ export default function ShoppingList(props: { closeShoppingList: (ingredients: I
             return item;
         });
         setShoppingList(updatedList);
-        setAggregatedList(aggregatedList.map(item => {
-            for (const id of ingredient.ids) {
-                if (item.ids.includes(id)) {
-                    return { ...item, purchased: newPurchased };
-                }
+        
+        // Update aggregated list to reflect the change
+        setAggregatedList(prev => prev.map(item => {
+            if (item.name.toLowerCase() === ingredient.name.toLowerCase() && 
+                item.metric === ingredient.metric) {
+                return { ...item, purchased: newPurchased };
             }
             return item;
         }));
+
+        // Call the callback to update all individual recipe instances
+        if (props.onToggleAllInstances) {
+            props.onToggleAllInstances(ingredient.name, ingredient.metric, newPurchased);
+        }
     };
 
     return (
         <>
             <div className="popup-container"
                 onClick={async () => {
-                    await closeShoppingList(shoppingList);
+                    await closeShoppingList();
                 }}
             >
                 <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup p-10 max-h-[1200px] max-w-[1000px] overflow-scroll scrollbar-hide"

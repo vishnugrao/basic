@@ -3,17 +3,19 @@
 import { Preprocessing } from "@/types/types";
 import { useEffect, useState, useMemo } from "react";
 
-export default function PreprocessingList(props: { closePreprocessingList: (preprocessing: Preprocessing[]) => void, preprocessing: Preprocessing[] }) {
+export default function PreprocessingList(props: { 
+    closePreprocessingList: () => void, 
+    preprocessing: Preprocessing[],
+    onToggleAllPreprocessingInstances?: (operation: string, instruction: string, specific: string, completed: boolean) => void
+}) {
     const { closePreprocessingList, preprocessing } = props;
     
-    // Maintain original list for state updates
     const [preprocessingList, setPreprocessingList] = useState<Preprocessing[]>(preprocessing);
 
     useEffect(() => {
         setPreprocessingList(preprocessing);
     }, [preprocessing]);
 
-    // Group preprocessing by operation
     const groupedPreprocessing = useMemo(() => {
         const groups: { [key: string]: Preprocessing[] } = {};
         preprocessingList.forEach(prep => {
@@ -22,21 +24,57 @@ export default function PreprocessingList(props: { closePreprocessingList: (prep
             }
             groups[prep.operation].push(prep);
         });
-        return groups;
+        
+        const aggregatedGroups: { [key: string]: Preprocessing[] } = {};
+        Object.entries(groups).forEach(([operation, preps]) => {
+            const instructionGroups: { [key: string]: Preprocessing[] } = {};
+            preps.forEach(prep => {
+                const key = `${prep.instruction}-${prep.specific}`;
+                if (!instructionGroups[key]) {
+                    instructionGroups[key] = [];
+                }
+                instructionGroups[key].push(prep);
+            });
+            
+            aggregatedGroups[operation] = Object.values(instructionGroups).map(group => {
+                const allCompleted = group.every(prep => prep.completed);
+                return {
+                    ...group[0],
+                    completed: allCompleted
+                };
+            });
+        });
+        
+        return aggregatedGroups;
     }, [preprocessingList]);
 
     const toggleCompleted = (prep: Preprocessing) => {
-        const updatedList = preprocessingList.map(item => 
-            item.id === prep.id ? { ...item, completed: !item.completed } : item
+        const matchingItems = preprocessingList.filter(item => 
+            item.instruction === prep.instruction && 
+            item.specific === prep.specific &&
+            item.operation === prep.operation
         );
+        
+        const updatedList = preprocessingList.map(item => {
+            if (matchingItems.some(match => match.id === item.id)) {
+                return { ...item, completed: !prep.completed };
+            }
+            return item;
+        });
+        
         setPreprocessingList(updatedList);
+
+        // Call the callback to update all individual recipe instances
+        if (props.onToggleAllPreprocessingInstances) {
+            props.onToggleAllPreprocessingInstances(prep.operation, prep.instruction, prep.specific, !prep.completed);
+        }
     };
 
     return (
         <>
             <div className="popup-container"
                 onClick={async () => {
-                    await closePreprocessingList(preprocessingList);
+                    await closePreprocessingList();
                 }}
             >
                 <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup p-10 max-h-[1200px] max-w-[1000px] overflow-scroll scrollbar-hide"
