@@ -107,8 +107,12 @@ export default function RecipeDisplay(props: {
                 <div className="flex gap-4">
                     <div 
                         onClick={() => {
-                            setActiveTab('ingredients');
-                            setDrawerOpen(!drawerOpen);
+                            if (drawerOpen && activeTab === 'ingredients') {
+                                setDrawerOpen(false);
+                            } else {
+                                setActiveTab('ingredients');
+                                setDrawerOpen(true);
+                            }
                         }}
                         className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                     >
@@ -116,8 +120,12 @@ export default function RecipeDisplay(props: {
                     </div>
                     <div 
                         onClick={() => {
-                            setActiveTab('preprocessing');
-                            setDrawerOpen(!drawerOpen);
+                            if (drawerOpen && activeTab === 'preprocessing') {
+                                setDrawerOpen(false);
+                            } else {
+                                setActiveTab('preprocessing');
+                                setDrawerOpen(true);
+                            }
                         }}
                         className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                     >
