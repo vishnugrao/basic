@@ -1,12 +1,33 @@
 'use client'
 
-import { Goal, Ingredient, MealPlan, Recipe, User, Preprocessing, Step } from "@/types/types";
-import { UUID } from "crypto";
+import { Goal, Ingredient, MealPlan, Recipe, RecipeWithData, User, Preprocessing, Step } from "@/types/types";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
 import InlineInput from "./InlineInput";
 import ShoppingList from "./ShoppingList";
 import PreprocessingList from "./PreprocessingList";
 import RecipeDisplay from "./RecipeDisplay";
+
+// Placeholder component for loading recipes
+const RecipePlaceholder = ({ index }: { index: number }) => (
+    <div className="relative border-2 border-gray-200 rounded-xl p-6 bg-white">
+        <div className="absolute inset-0 bg-white/80 backdrop-blur-sm rounded-xl flex items-center justify-center z-10">
+            <div className="flex flex-col items-center space-y-4">
+                <div className="w-8 h-8 border-2 border-gray-200 border-t-[#B1454A] rounded-full animate-spin"></div>
+                <p className="text-gray-600 text-sm font-medium">
+                    Generating recipe {index + 1}...
+                </p>
+            </div>
+        </div>
+        <div className="opacity-50">
+            <h3 className="text-xl font-semibold mb-4">Recipe Placeholder</h3>
+            <div className="space-y-3">
+                <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
+            </div>
+        </div>
+    </div>
+);
 
 export default function QuantitativeNutrition(props: {
     userDetails: User,
@@ -17,7 +38,7 @@ export default function QuantitativeNutrition(props: {
     preprocessingDetails: Preprocessing[], 
     stepsDetails: Step[], 
     onUpdateAll: (updates: Recipe[]) => Promise<void>, 
-    onAppend: (addition: Recipe) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, onUpdateSteps: (updates: Step[]) => Promise<void>
+    onAppend: (addition: RecipeWithData) => Promise<void>, isShoppingListOpen: boolean, setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, onUpdateSteps: (updates: Step[]) => Promise<void>
 }) {
     const { userDetails, goalDetails, mealPlan, recipesDetails, 
         ingredientsDetails, preprocessingDetails, stepsDetails, 
@@ -34,33 +55,143 @@ export default function QuantitativeNutrition(props: {
     const [isLoading, setIsLoading] = useState(false);
     const [customCuisine, setCustomCuisine] = useState("...");
     const [isPreprocessingOpen, setIsPreprocessingOpen] = useState(false);
+    const [loadingRecipes, setLoadingRecipes] = useState<boolean[]>([false, false, false, false]);
 
     const toggleShoppingList = () => {
         setIsShoppingListOpen(!isShoppingListOpen);
     }
 
-    const closeShoppingList = async (ingredients: Ingredient[]) => {
-        console.log('closeShoppingList called with:', ingredients);
+    const closeShoppingList = async () => {
         setIsShoppingListOpen(false);
-        await onUpdateShoppingList(ingredients);
-        console.log('onUpdateShoppingList completed');
+        // The overall list is now managed separately from individual recipe data
+    }
+
+    // Toggle all instances of an ingredient across all recipes
+    const toggleAllInstances = async (name: string, metric: string, purchased: boolean) => {
+        const updatedIngredients = ingredientsDetails.map(ingredient => {
+            if (ingredient.name.toLowerCase() === name.toLowerCase() && ingredient.metric === metric) {
+                return { ...ingredient, purchased };
+            }
+            return ingredient;
+        });
+        
+        await onUpdateShoppingList(updatedIngredients);
+    }
+
+    // Toggle all instances of a preprocessing step across all recipes
+    const toggleAllPreprocessingInstances = async (operation: string, instruction: string, specific: string, completed: boolean) => {
+        const updatedPreprocessing = preprocessingDetails.map(prep => {
+            if (prep.operation === operation && prep.instruction === instruction && prep.specific === specific) {
+                return { ...prep, completed };
+            }
+            return prep;
+        });
+        
+        await onUpdatePreprocessing(updatedPreprocessing);
     }
 
     const togglePreprocessing = () => {
         setIsPreprocessingOpen(!isPreprocessingOpen);
     }
 
-    const closePreprocessingList = async (preprocessing: Preprocessing[]) => {
-        console.log('closePreprocessingList called with:', preprocessing);
+    const closePreprocessingList = async () => {
         setIsPreprocessingOpen(false);
-        await onUpdatePreprocessing(preprocessing);
+        // The overall list is now managed separately from individual recipe data
         console.log('onUpdatePreprocessing completed');
     }
 
-    useEffect(() => {
+    // Aggregate shopping list logic - track purchased amounts and only mark as purchased when ALL instances are purchased
+    const aggregateShoppingList = (allIngredients: Ingredient[]): Ingredient[] => {
+        const aggregated: { [key: string]: Ingredient[] } = {};
+        
+        // Group ingredients by name and metric
+        allIngredients.forEach(ingredient => {
+            const key = `${ingredient.name.toLowerCase()}-${ingredient.metric}`;
+            if (!aggregated[key]) {
+                aggregated[key] = [];
+            }
+            aggregated[key].push(ingredient);
+        });
 
-    }, [recipesDetails])
-    
+        // Create aggregated list with purchased amount tracking
+        const result: Ingredient[] = [];
+        Object.values(aggregated).forEach(group => {
+            const allPurchased = group.every(ing => ing.purchased);
+            const totalAmount = group.reduce((sum, ing) => sum + ing.amount, 0);
+            const purchasedAmount = group.reduce((sum, ing) => sum + (ing.purchased ? ing.amount : 0), 0);
+            
+            // Use the first ingredient as template, but sum amounts and track purchased amounts
+            const aggregatedIngredient: Ingredient = {
+                ...group[0],
+                amount: totalAmount,
+                purchased: allPurchased,
+                // Add a custom property to track purchased amount for display
+                purchasedAmount: purchasedAmount
+            } as Ingredient & { purchasedAmount: number };
+            
+            result.push(aggregatedIngredient);
+        });
+
+        return result;
+    };
+
+    // Aggregate preprocessing logic - only mark as completed when ALL instances are completed
+    const aggregatePreprocessingList = (allPreprocessing: Preprocessing[]): Preprocessing[] => {
+        const aggregated: { [key: string]: Preprocessing[] } = {};
+        
+        // Group preprocessing by operation and instruction
+        allPreprocessing.forEach(prep => {
+            const key = `${prep.operation}-${prep.instruction}-${prep.specific}`;
+            if (!aggregated[key]) {
+                aggregated[key] = [];
+            }
+            aggregated[key].push(prep);
+        });
+
+        // Create aggregated list with "all or nothing" logic
+        const result: Preprocessing[] = [];
+        Object.values(aggregated).forEach(group => {
+            const allCompleted = group.every(prep => prep.completed);
+            
+            // Use the first preprocessing as template, but check all completed
+            const aggregatedPreprocessing: Preprocessing = {
+                ...group[0],
+                completed: allCompleted
+            };
+            
+            result.push(aggregatedPreprocessing);
+        });
+
+        return result;
+    };
+
+    // Update individual recipe data (keep as individual items)
+    const updateIndividualRecipeData = async (updatedIngredients: Ingredient[], updatedPreprocessing: Preprocessing[]) => {
+        await onUpdateShoppingList(updatedIngredients);
+        await onUpdatePreprocessing(updatedPreprocessing);
+    };
+
+    // Update overall shopping list based on individual recipe states
+    const updateOverallShoppingList = async () => {
+        // The overall list is now updated automatically by passing aggregated data to the components
+        // No need to manually update since the components receive aggregated data directly
+    };
+
+    // Update overall preprocessing list based on individual recipe states
+    const updateOverallPreprocessingList = async () => {
+        // The overall list is now updated automatically by passing aggregated data to the components
+        // No need to manually update since the components receive aggregated data directly
+    };
+
+    // Sync individual recipe updates with overall state
+    const syncIndividualRecipeUpdate = async (updatedIngredients: Ingredient[], updatedPreprocessing: Preprocessing[]) => {
+        // Update the individual recipe data (keep as individual items)
+        await updateIndividualRecipeData(updatedIngredients, updatedPreprocessing);
+        
+        // Note: The overall lists will be updated automatically when the individual data changes
+        // since they are derived from the individual recipe data
+    };
+
     useEffect(() =>  {
         const bmrConstant = userDetails.gender == "Male" ? 5 : -161;
         const basalMetabolicRate = 10 * userDetails.weight + 6.25 * userDetails.height - 5 * userDetails.age + bmrConstant;
@@ -91,17 +222,116 @@ export default function QuantitativeNutrition(props: {
         setDailyBreakfastFat(Math.round(0.2 * (fat)));
     }, [tdee, offset, protein, fat])
 
+    const generateSingleRecipe = async (
+        index: number,
+        targetCalories: number, 
+        targetProtein: number, 
+        targetFat: number, 
+        cookDate: Date,
+        existingRecipeNames: Recipe[],
+        existingIngredients: Ingredient[],
+        existingPreprocessing: Preprocessing[],
+        existingSteps: Step[]
+    ) => {
+        try {
+            const response = await fetch('/api/recipe', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    userDetails,
+                    goalDetails,
+                    cuisines: mealPlan.cuisines,
+                    existingRecipes: existingRecipeNames,
+                    calorieTarget: targetCalories,
+                    proteinTarget: targetProtein,
+                    fatTarget: targetFat,
+                    cookDate: cookDate,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to generate recipe');
+            }
+
+            const data = await response.json();
+            const recipe = data.recipe;
+            const ingredients = data.ingredients;
+            const preprocessing = data.preprocessing;
+            const steps = data.steps;
+
+            if (!recipe || typeof recipe !== 'object') {
+                throw new Error('Invalid recipe data received');
+            }
+
+            existingRecipeNames.push(recipe);
+            existingIngredients.push(ingredients);
+            existingPreprocessing.push(preprocessing);
+            existingSteps.push(steps);
+
+            // Generate ingredients
+            if (ingredients && Array.isArray(ingredients)) {
+                await fetch('/api/ingredient', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        ingredients,
+                    }),
+                });
+            }
+
+            // Generate preprocessing
+            if (preprocessing && Array.isArray(preprocessing)) {
+                await fetch('/api/preprocessing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        preprocessing,
+                    }),
+                });
+            }
+
+            // Generate steps
+            if (steps && Array.isArray(steps)) {
+                await fetch('/api/step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        steps,
+                    }),
+                });
+            }
+
+            await props.onAppend({ ...recipe, ingredients, preprocessing, steps });
+            return { ...recipe, ingredients, preprocessing, steps };
+        } catch (error) {
+            console.error(`Error generating recipe ${index + 1}:`, error);
+            throw error;
+        }
+    };
+
     const rollRecipes = async (targetCalories: number, targetProtein: number, targetFat: number) => {
         setIsLoading(true);
-        try {
+        setLoadingRecipes([true, true, true, true]);
 
+        try {
             await props.onUpdateAll([]);
+            await onUpdateShoppingList([]);
+            await onUpdatePreprocessing([]);
+            await onUpdateSteps([]);
 
             if (!mealPlan?.cuisines) {
                 throw new Error('Meal plan or cuisines not available');
             }
 
-            const mealTypes = [
+            const mealTypes: [number, number, number, Date][] = [
                 // Sunday cook - Lunch M,T,W
                 [Math.round(3 * 0.5 * targetCalories), Math.round(3 * 0.6 * targetProtein), Math.round(3 * 0.5 * targetFat), new Date(new Date().setDate(new Date().getDate() + 1))], 
                 // Sunday cook - Dinner S,M,T,W
@@ -112,88 +342,47 @@ export default function QuantitativeNutrition(props: {
                 [Math.round(4 * 0.3 * targetCalories), Math.round(4 * 0.3 * targetProtein), Math.round(4 * 0.3 * targetFat), new Date(new Date().setDate(new Date().getDate() + 5))]
             ];
 
-            const existingRecipeNames: string[] = [];
+            const existingRecipeNames: Recipe[] = [];
+            const existingIngredients: Ingredient[] = [];
+            const existingPreprocessing: Preprocessing[] = [];
+            const existingSteps: Step[] = [];
 
-            for (const mealType of mealTypes) {
-                const response = await fetch('/api/recipe', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        userDetails,
-                        goalDetails,
-                        cuisines: mealPlan.cuisines,
-                        existingRecipes: existingRecipeNames,
-                        calorieTarget: mealType[0],
-                        proteinTarget: mealType[1],
-                        fatTarget: mealType[2],
-                        cookDate: mealType[3],
-                    }),
-                });
+            // Spawn parallel threads for each recipe
+            const recipePromises = mealTypes.map(async (mealType, index) => {
+                try {
+                    const { recipe, ingredients, preprocessing, steps } = await generateSingleRecipe(
+                        index,
+                        mealType[0],
+                        mealType[1], 
+                        mealType[2],
+                        mealType[3],
+                        existingRecipeNames,
+                        existingIngredients,
+                        existingPreprocessing,
+                        existingSteps
+                    );
 
-                if (!response.ok) {
-                    throw new Error('Failed to generate recipe');
-                }
-
-                const data = await response.json();
-                const recipe = data.recipe;
-
-                if (!recipe || typeof recipe !== 'object') {
-                    throw new Error('Invalid recipe data received');
-                }
-
-                const rid: UUID = recipe.id;
-                existingRecipeNames.push(recipe.recipe_name);
-
-                const ingredients = Array.isArray(recipe.ingredients) ? recipe.ingredients : [];
-                for (const ingredient of ingredients) {
-                    await fetch('/api/ingredient', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            user_id: userDetails.id,
-                            recipe_id: rid,
-                            ...ingredient,
-                            purchased: false,
-                        }),
+                    // Update loading state for this specific recipe
+                    setLoadingRecipes(prev => {
+                        const newState = [...prev];
+                        newState[index] = false;
+                        return newState;
                     });
-                }
-
-                const preprocessing = Array.isArray(recipe.preprocessing) ? recipe.preprocessing : [];
-                for (const prep of preprocessing) {
-                    await fetch('/api/preprocessing', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            user_id: userDetails.id,
-                            recipe_id: rid,
-                            ...prep,
-                        }),
+                    
+                    return { recipe, ingredients, preprocessing, steps };
+                } catch (error) {
+                    // Update loading state for this specific recipe even on error
+                    setLoadingRecipes(prev => {
+                        const newState = [...prev];
+                        newState[index] = false;
+                        return newState;
                     });
+                    throw error;
                 }
+            });
 
-                const steps = Array.isArray(recipe.steps) ? recipe.steps : [];
-                for (const step of steps) {
-                    await fetch('/api/step', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            user_id: userDetails.id,
-                            recipe_id: rid,
-                            ...step,
-                        }),
-                    });
-                }
-
-                await props.onAppend(recipe);
-            }
+            // Wait for all recipes to complete
+            await Promise.all(recipePromises);
             console.log('Successfully generated new meal plan!');
         } catch (error) {
             console.error(error instanceof Error ? error.message : 'Failed to generate meal plan');
@@ -221,7 +410,7 @@ export default function QuantitativeNutrition(props: {
                 </div>
                 <div className="flex-auto"></div>
             </div>    
-            {recipesDetails.length === 0 && (
+            {recipesDetails.length === 0 && !isLoading && (
                 <div className="flex min-h-[800px] items-center justify-center">
                     <div
                         onClick={() => {
@@ -237,7 +426,7 @@ export default function QuantitativeNutrition(props: {
                     </div>
                 </div>
             )}
-            {recipesDetails.length > 0 && (
+            {(isLoading || recipesDetails.length > 0) && (
                 <div className="flex flex-col gap-4 pt-20">
                     <div className="flex gap-4">
                         <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
@@ -245,13 +434,13 @@ export default function QuantitativeNutrition(props: {
                         >
                             <p>&nbsp;Shopping List&nbsp;</p>
                         </div>
-                        {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={ingredientsDetails} />}
+                        {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={aggregateShoppingList(ingredientsDetails)} onToggleAllInstances={toggleAllInstances} />}
                         <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
                             onClick={togglePreprocessing}
                         >
                             <p>&nbsp;Preprocessing&nbsp;</p>
                         </div>
-                        {isPreprocessingOpen && <PreprocessingList closePreprocessingList={closePreprocessingList} preprocessing={preprocessingDetails} />}
+                        {isPreprocessingOpen && <PreprocessingList closePreprocessingList={closePreprocessingList} preprocessing={aggregatePreprocessingList(preprocessingDetails)} onToggleAllPreprocessingInstances={toggleAllPreprocessingInstances} />}
                         <div className="flex-auto"></div>
                         <div className="flex w-1/2 gap-4">
                             <div className="flex">
@@ -282,8 +471,26 @@ export default function QuantitativeNutrition(props: {
                         </div>
                     </div>
                     <div className="flex flex-col gap-4">
+                        {/* Show placeholders while loading */}
+                        {isLoading && loadingRecipes.map((isLoading, index) => 
+                            isLoading && <RecipePlaceholder key={`placeholder-${index}`} index={index} />
+                        )}
+                        {/* Show actual recipes */}
                         {recipesDetails.map((recipe, index) => (
-                            <RecipeDisplay key={index} recipe={recipe} ingredients={ingredientsDetails} preprocessing={preprocessingDetails} steps={stepsDetails} recipesDetails={recipesDetails} onUpdatePreprocessing={onUpdatePreprocessing} onUpdateSteps={onUpdateSteps} onUpdateShoppingList={onUpdateShoppingList} />
+                            <RecipeDisplay 
+                                key={index} 
+                                recipe={recipe} 
+                                ingredients={ingredientsDetails} 
+                                preprocessing={preprocessingDetails} 
+                                steps={stepsDetails} 
+                                recipesDetails={recipesDetails} 
+                                onUpdatePreprocessing={onUpdatePreprocessing} 
+                                onUpdateSteps={onUpdateSteps} 
+                                onUpdateShoppingList={onUpdateShoppingList}
+                                onUpdateOverallShoppingList={updateOverallShoppingList}
+                                onUpdateOverallPreprocessingList={updateOverallPreprocessingList}
+                                onSyncIndividualRecipeUpdate={syncIndividualRecipeUpdate}
+                            />
                         ))}
                     </div>
                 </div>
