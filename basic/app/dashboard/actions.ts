@@ -258,3 +258,83 @@ export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {
         redirect('/error');        
     }
 }
+
+export async function getWallet(user_id: UUID) {
+    try {
+        console.log('🔵 [WALLET] Fetching wallet for user:', user_id)
+        
+        const supabase = await createClient()
+        
+        // Check if user is authenticated
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError) {
+            console.error('❌ [WALLET] Auth error:', authError)
+            throw new Error(`Authentication error: ${authError.message}`)
+        }
+        
+        if (!user) {
+            console.error('❌ [WALLET] User not authenticated')
+            throw new Error('User not authenticated')
+        }
+        
+        console.log('🔵 [WALLET] User authenticated:', user.id)
+        
+        const { data, error } = await supabase.from('Wallets').select('*').eq('user_id', user_id).single()
+
+        if (error) {
+            console.error('❌ [WALLET] Error fetching wallet:', error)
+            throw new Error(`Failed to fetch wallet: ${error.message}`)
+        }
+
+        if (!data) {
+            console.error('❌ [WALLET] No wallet found for user:', user_id)
+            throw new Error('Wallet not found')
+        }
+
+        console.log('✅ [WALLET] Wallet fetched successfully:', data)
+        return data
+    } catch (error) {
+        console.error('❌ [WALLET] Error in getWallet:', error)
+        redirect('/error')
+    }
+}
+
+export async function updateWallet(walletDetails: {
+    amount_paid: number;
+    amount_used: number;
+    requests_made: number;
+    updated_at: string;
+    user_id: UUID;
+}) {
+    try {
+        console.log('🔵 [WALLET] Updating wallet for user:', walletDetails.user_id, walletDetails)
+        
+        const supabase = await createClient()
+        
+        // Check if user is authenticated
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError) {
+            console.error('❌ [WALLET] Auth error:', authError)
+            throw new Error(`Authentication error: ${authError.message}`)
+        }
+        
+        if (!user) {
+            console.error('❌ [WALLET] User not authenticated')
+            throw new Error('User not authenticated')
+        }
+        
+        console.log('🔵 [WALLET] User authenticated:', user.id)
+        
+        const { error } = await supabase.from('Wallets').update(walletDetails).eq('user_id', walletDetails.user_id)
+
+        if (error) {
+            console.error('❌ [WALLET] Error updating wallet:', error)
+            throw new Error(`Failed to update wallet: ${error.message}`)
+        }
+
+        console.log('✅ [WALLET] Wallet updated successfully')
+    } catch (error) {
+        console.error('❌ [WALLET] Error in updateWallet:', error)
+        throw error
+    }
+}

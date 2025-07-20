@@ -2,12 +2,14 @@
 
 import BubbleInput from "./BubbleInput"
 import CuisineInput from "./CuisineInput"
-import { MealPlan, SearchSet } from "@/types/types"
+import UserWallet from "./UserWallet"
+import { MealPlan, SearchSet, UserWallet as UserWalletType } from "@/types/types"
 import { Dispatch, SetStateAction } from "react"
 
 interface MealPlannerProps {
     mealPlan: MealPlan;
     searchSet: SearchSet;
+    wallet: UserWalletType;
     isCuisineSearchOpen: boolean;
     setIsCuisineSearchOpen: Dispatch<SetStateAction<boolean>>;
     onUpdate: (updates: Partial<MealPlan>) => Promise<void>;
@@ -16,6 +18,7 @@ interface MealPlannerProps {
 export default function MealPlanner({ 
     mealPlan,
     searchSet,
+    wallet,
     isCuisineSearchOpen,
     setIsCuisineSearchOpen,
     onUpdate
@@ -32,8 +35,8 @@ export default function MealPlanner({
     }
 
     return(
-        <div className="flex w-1/3 gap-4 flex-wrap">
-            <div className="flex-1">
+        <div className="flex">
+            <div className="flex w-1/3 flex-col gap-4">
                 <div className="flex items-baseline h-10">
                     <p className="min-w-[200px] text-2xl whitespace-nowrap">Top 4 cuisines:&nbsp;&nbsp;</p>
                     <div className="flex items-baseline text-2xl">
@@ -55,6 +58,11 @@ export default function MealPlanner({
                     </div>
                 </div>
             </div>
+            <div className="flex-auto"></div>
+            <div className="flex w-1/3">
+                <UserWallet wallet={wallet} />
+            </div>
+            <div className="flex-auto"></div>
         </div>
     )
 }

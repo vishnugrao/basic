@@ -34,13 +34,17 @@ export async function signup(formData: FormData) {
         password: formData.get('password') as string,
     }
 
-    const { error } = await supabase.auth.signUp(data)
+    const { data: authData, error } = await supabase.auth.signUp(data)
 
     if (error) {
         redirect('/error')
     }
 
-    const uid = uuidv4()
+    if (!authData.user) {
+        redirect('/error')
+    }
+
+    const uid = authData.user.id
 
     const { error: error2 } = await supabase.from('Users').insert({
         id: uid,
@@ -102,6 +106,25 @@ export async function signup(formData: FormData) {
         console.log(error5)
         redirect('/error')
     }
+
+    console.log('🔵 [SIGNUP] Creating wallet for user:', uid)
+    
+    const {error: error6} = await supabase.from('Wallets').insert({
+        id: uuidv4(),
+        user_id: uid,
+        amount_paid: 2,
+        amount_used: 0,
+        requests_made: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    })
+
+    if (error6) {
+        console.error('❌ [SIGNUP] Error creating wallet:', error6)
+        redirect('/error')
+    }
+    
+    console.log('✅ [SIGNUP] Wallet created successfully')
 
     revalidatePath('/dashboard', 'layout')
     redirect('/dashboard')

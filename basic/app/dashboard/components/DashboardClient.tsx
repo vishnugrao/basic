@@ -5,7 +5,7 @@ import UserDetails from "./UserDetails";
 import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
-import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step } from "@/types/types";
+import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
 import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients } from "../actions";
 
 export default function DashboardClient({ 
@@ -16,7 +16,8 @@ export default function DashboardClient({
     initialRecipesDetails,
     initialIngredientDetails,
     initialPreprocessingDetails,
-    initialStepsDetails
+    initialStepsDetails,
+    initialWallet
 }: {
     initialUserDetails: User,
     initialGoalDetails: Goal,
@@ -25,7 +26,8 @@ export default function DashboardClient({
     initialRecipesDetails: Recipe[],
     initialIngredientDetails: Ingredient[],
     initialPreprocessingDetails: Preprocessing[],
-    initialStepsDetails: Step[]
+    initialStepsDetails: Step[],
+    initialWallet: UserWalletType
 }) {
     
     const [userDetails, setUserDetails] = useState<User>(initialUserDetails);
@@ -51,6 +53,7 @@ export default function DashboardClient({
     const [ingredientsDetails, setIngredientsDetails] = useState<Ingredient[]>(initialIngredientDetails);
     const [preprocessingDetails, setPreprocessingDetails] = useState<Preprocessing[]>(initialPreprocessingDetails);
     const [stepsDetails, setStepsDetails] = useState<Step[]>(initialStepsDetails);
+    const [wallet] = useState<UserWalletType>(initialWallet);
     
     const [isShoppingListOpen, setIsShoppingListOpen] = useState(false);
 
@@ -167,6 +170,7 @@ export default function DashboardClient({
                 <MealPlanner 
                     mealPlan={mealPlan}
                     searchSet={searchSet}
+                    wallet={wallet}
                     isCuisineSearchOpen={isCuisineSearchOpen}
                     setIsCuisineSearchOpen={setIsCuisineSearchOpen}
                     onUpdate={handleMealPlanUpdate}
