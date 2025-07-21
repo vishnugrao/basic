@@ -69,6 +69,7 @@ export default function QuantitativeNutrition(props: {
     const [isInsufficientBalanceOpen, setIsInsufficientBalanceOpen] = useState(false);
     const [requiredAmount, setRequiredAmount] = useState(0);
     const [isCuisinePopupOpen, setIsCuisinePopupOpen] = useState(false);
+    const [selectedRerollCuisines, setSelectedRerollCuisines] = useState<string[]>(mealPlan.cuisines);
 
     // Calculate current balance
     const currentBalance = wallet.amount_paid - wallet.amount_used;
@@ -466,7 +467,6 @@ export default function QuantitativeNutrition(props: {
         }
     };
 
-    // Reroll selected recipes
     const rerollSelectedRecipes = async () => {
         if (selectedRecipes.size === 0) {
             console.log('No recipes selected for reroll');
@@ -501,8 +501,8 @@ export default function QuantitativeNutrition(props: {
                 [Math.round(4 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.3 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 5))]
             ];
 
-            // Use selected cuisine(s) for reroll
-            const cuisinesToUse = mealPlan.cuisines.slice(0, 4);
+            // Use selected reroll cuisines for reroll
+            const cuisinesToUse = selectedRerollCuisines.length > 0 ? selectedRerollCuisines : mealPlan.cuisines.slice(0, 4);
             const existingRecipeNames: Recipe[] = [];
             const existingIngredients: Ingredient[] = [];
             const existingPreprocessing: Preprocessing[] = [];
@@ -522,7 +522,7 @@ export default function QuantitativeNutrition(props: {
                         existingIngredients,
                         existingPreprocessing,
                         existingSteps,
-                        cuisinesToUse // Always use top 4 cuisines
+                        cuisinesToUse
                     );
 
                     // Update loading state for this specific recipe
@@ -557,6 +557,7 @@ export default function QuantitativeNutrition(props: {
             setSelectedRecipes(new Set());
             // Reset cuisine input to top 4 cuisines
             setCustomCuisine("...");
+            setSelectedRerollCuisines(mealPlan.cuisines);
         } catch (error) {
             console.error(error instanceof Error ? error.message : 'Failed to reroll selected recipes');
             console.error('Error rerolling selected recipes:', error);
@@ -602,20 +603,30 @@ export default function QuantitativeNutrition(props: {
             {(isLoading || recipesDetails.length > 0) && (
                 <div className="flex flex-col gap-4 pt-20">
                     {/* First row: Cuisine selection, recipe selection, and reroll selected */}
-                    <div className="flex items-center w-full gap-4 text-2xl flex-wrap">
-                        <span className="min-w-fit">Selected cuisines:&nbsp;</span>
-                        <div className="flex flex-wrap gap-4">
+                    <div className="flex items-start w-full gap-4 mb-4">
+                        <div className="flex items-baseline text-2xl w-1/3 gap-4">
+                            <div className="min-w-[225px] whitespace-nowrap">Selected cuisines:&nbsp;&nbsp;</div>
                             <BubbleInput
-                                currentPreferences={mealPlan.cuisines}
+                                currentPreferences={selectedRerollCuisines}
                                 limitPreferences={4}
                             />
+                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ml-4"
+                                onClick={() => setIsCuisinePopupOpen(true)}
+                            >
+                                <span>&nbsp;Change&nbsp;</span>
+                            </div>
+                            {isCuisinePopupOpen && (
+                                <CuisineInput
+                                    cuisineSet={selectedRerollCuisines}
+                                    searchSet={searchSet.searchSet}
+                                    closeCuisineSearch={(cuisines) => {
+                                        setSelectedRerollCuisines(cuisines.length > 0 ? cuisines : []);
+                                        setCustomCuisine(cuisines.length > 0 ? cuisines[0] : "...");
+                                        setIsCuisinePopupOpen(false);
+                                    }}
+                                />
+                            )}
                         </div>
-                        <button
-                            className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ml-4"
-                            onClick={() => setIsCuisinePopupOpen(true)}
-                        >
-                            <span>&nbsp;Change&nbsp;</span>
-                        </button>
                         <div className="flex-auto"></div>
                         <div className="flex gap-4 items-center ml-auto whitespace-nowrap">
                             <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
@@ -643,16 +654,6 @@ export default function QuantitativeNutrition(props: {
                                 <span>&nbsp;Re-roll Selected ({selectedRecipes.size})&nbsp;</span>
                             </button>
                         </div>
-                        {isCuisinePopupOpen && (
-                            <CuisineInput
-                                cuisineSet={mealPlan.cuisines}
-                                searchSet={searchSet.searchSet}
-                                closeCuisineSearch={(cuisines) => {
-                                    setCustomCuisine(cuisines.length > 0 ? cuisines[0] : "...");
-                                    setIsCuisinePopupOpen(false);
-                                }}
-                            />
-                        )}
                     </div>
 
                     {/* Second row: Shopping list, preprocessing, and reroll all */}
