@@ -45,6 +45,7 @@ export default function QuantitativeNutrition(props: {
     setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, 
     onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, 
     onUpdatePreprocessing: (updates: Preprocessing[]) => Promise<void>, 
+    onUpdateSpecificPreprocessing?: (operation: string, ingredient: string, specific: string, completed: boolean) => Promise<void>,
     onUpdateSteps: (updates: Step[]) => Promise<void>,
     onWalletUpdate: (cost: number, requestsMade: number) => Promise<void>,
     wallet: UserWallet
@@ -52,7 +53,7 @@ export default function QuantitativeNutrition(props: {
     const { userDetails, goalDetails, mealPlan, searchSet, recipesDetails, 
         ingredientsDetails, preprocessingDetails, stepsDetails, 
         isShoppingListOpen, setIsShoppingListOpen, onUpdateShoppingList, 
-        onUpdatePreprocessing, onUpdateSteps, onWalletUpdate, wallet } = props;
+        onUpdatePreprocessing, onUpdateSpecificPreprocessing, onUpdateSteps, onWalletUpdate, wallet } = props;
     const [tdee, setTDEE] = useState(0);
     const [offset, setOffset] = useState(0);
     const [protein, setProtein] = useState(0);
@@ -108,14 +109,19 @@ export default function QuantitativeNutrition(props: {
 
     // Toggle all instances of a preprocessing step across all recipes
     const toggleAllPreprocessingInstances = async (operation: string, ingredient: string, specific: string, completed: boolean) => {
-        const updatedPreprocessing = preprocessingDetails.map(prep => {
-            if (prep.operation === operation && prep.ingredient_name === ingredient && prep.specific === specific) {
-                return { ...prep, completed };
-            }
-            return prep;
-        });
-        
-        await onUpdatePreprocessing(updatedPreprocessing);
+        // Use optimized specific update if available, otherwise fall back to bulk update
+        if (onUpdateSpecificPreprocessing) {
+            await onUpdateSpecificPreprocessing(operation, ingredient, specific, completed);
+        } else {
+            const updatedPreprocessing = preprocessingDetails.map(prep => {
+                if (prep.operation === operation && prep.ingredient_name === ingredient && prep.specific === specific) {
+                    return { ...prep, completed };
+                }
+                return prep;
+            });
+            
+            await onUpdatePreprocessing(updatedPreprocessing);
+        }
     }
 
     const togglePreprocessing = () => {

@@ -6,7 +6,7 @@ import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateWallet } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateWallet } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -174,6 +174,28 @@ export default function DashboardClient({
         }
     }
 
+    // Optimized preprocessing update for specific items
+    const handleSpecificPreprocessingUpdate = async (operation: string, ingredient: string, specific: string, completed: boolean) => {
+        try {
+            await updateSpecificPreprocessing(userDetails.id, operation, ingredient, specific, completed);
+            
+            // Update local state to reflect the change
+            setPreprocessingDetails(prevPreprocessing => 
+                prevPreprocessing.map(prep => {
+                    if (prep.operation === operation && 
+                        prep.ingredient_name === ingredient && 
+                        prep.specific === specific) {
+                        return { ...prep, completed };
+                    }
+                    return prep;
+                })
+            );
+            console.log('Specific preprocessing database update completed successfully');
+        } catch (error) {
+            console.error('Error updating specific preprocessing:', error);
+        }
+    }
+
     const handleStepsUpdate = async (updates: Step[]) => {
         setStepsDetails(updates);
     }
@@ -227,6 +249,7 @@ export default function DashboardClient({
                     setIsShoppingListOpen={setIsShoppingListOpen}
                     onUpdateShoppingList={handleIngredientsUpdate}
                     onUpdatePreprocessing={handlePreprocessingUpdate}
+                    onUpdateSpecificPreprocessing={handleSpecificPreprocessingUpdate}
                     onUpdateSteps={handleStepsUpdate}
                     onWalletUpdate={handleWalletUpdate}
                     wallet={wallet}

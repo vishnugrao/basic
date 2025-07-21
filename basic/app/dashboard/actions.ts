@@ -295,6 +295,35 @@ export async function updateMultipleSteps(user_id: UUID, steps: Array<{
     }
 }
 
+// Optimized update for specific preprocessing items (avoids delete/insert all)
+export async function updateSpecificPreprocessing(user_id: UUID, operation: string, ingredient: string, specific: string, completed: boolean) {
+    const supabase = await createClient();
+    try {
+        console.log('[PREPROCESSING] Updating specific preprocessing items:', { operation, ingredient, specific, completed });
+        
+        const { error } = await supabase
+            .from('Preprocessing')
+            .update({ 
+                completed,
+                updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user_id)
+            .eq('operation', operation)
+            .eq('ingredient_name', ingredient)
+            .eq('specific', specific);
+
+        if (error) {
+            console.log('[PREPROCESSING] Error updating specific preprocessing:', error);
+            throw new Error(`Failed to update preprocessing: ${error.message}`);
+        }
+
+        console.log('[PREPROCESSING] updateSpecificPreprocessing completed successfully');
+    } catch (error) {
+        console.log('[PREPROCESSING] Error in updateSpecificPreprocessing:', error);
+        throw error;
+    }
+}
+
 // Batch update for PreProcessing (not a true transaction, see note above)
 export async function updateMultiplePreprocessing(user_id: UUID, preprocessing: Array<{
     id: UUID,

@@ -1,7 +1,7 @@
 'use client'
 
 import { Preprocessing } from "@/types/types";
-import { useEffect, useState } from "react";
+import { useCallback, useMemo, useState } from "react"; 
 
 // Hierarchical grouping structure
 interface GroupedPreprocessing {
@@ -12,6 +12,11 @@ interface GroupedPreprocessing {
     }
 }
 
+// Lookup map for fast access
+interface PreprocessingLookup {
+    [key: string]: Preprocessing[]
+}
+
 export default function PreprocessingList(props: { 
     closePreprocessingList: () => void, 
     preprocessing: Preprocessing[],
@@ -19,49 +24,95 @@ export default function PreprocessingList(props: {
 }) {
     const { closePreprocessingList, preprocessing } = props;
     
-    const [groupedPreprocessing, setGroupedPreprocessing] = useState<GroupedPreprocessing>({});
+    // Local state for optimistic updates
+    const [localPreprocessing, setLocalPreprocessing] = useState<Preprocessing[]>(preprocessing);
 
-    useEffect(() => {
-        // Group preprocessing by operation -> specific -> ingredient
-        const grouped: GroupedPreprocessing = {};
-        
-        preprocessing.forEach(prep => {
-            if (!grouped[prep.operation]) {
-                grouped[prep.operation] = {};
-            }
-            if (!grouped[prep.operation][prep.specific]) {
-                grouped[prep.operation][prep.specific] = {};
-            }
-            if (!grouped[prep.operation][prep.specific][prep.ingredient_name!]) {
-                grouped[prep.operation][prep.specific][prep.ingredient_name!] = [];
-            }
-            grouped[prep.operation][prep.specific][prep.ingredient_name!].push(prep);
-        });
-        
-        setGroupedPreprocessing(grouped);
+    // Update local state when props change
+    useMemo(() => {
+        setLocalPreprocessing(preprocessing);
     }, [preprocessing]);
 
-    const toggleCompleted = (operation: string, specific: string, ingredient: string) => {
-        // Find all items that match operation, specific, and ingredient
-        const matchingItems = preprocessing.filter(prep => 
-            prep.operation === operation && 
-            prep.specific === specific && 
-            prep.ingredient_name === ingredient
-        );
+    // Memoized lookup map for O(1) access
+    const preprocessingLookup = useMemo((): PreprocessingLookup => {
+        const lookup: PreprocessingLookup = {};
         
-        if (matchingItems.length === 0) return;
+        localPreprocessing.forEach(prep => {
+            const key = `${prep.operation}-${prep.specific}-${prep.ingredient_name}`;
+            if (!lookup[key]) {
+                lookup[key] = [];
+            }
+            lookup[key].push(prep);
+        });
         
-        // Determine if all matching items are completed
+        return lookup;
+    }, [localPreprocessing]);
+
+    // Memoized grouped preprocessing (only recalculates when lookup changes)
+    const groupedPreprocessing = useMemo((): GroupedPreprocessing => {
+        const grouped: GroupedPreprocessing = {};
+        
+        Object.entries(preprocessingLookup).forEach(([, items]) => {
+            const firstItem = items[0];
+            const { operation, specific, ingredient_name } = firstItem;
+            
+            if (!grouped[operation]) {
+                grouped[operation] = {};
+            }
+            if (!grouped[operation][specific]) {
+                grouped[operation][specific] = {};
+            }
+            if (!grouped[operation][specific][ingredient_name!]) {
+                grouped[operation][specific][ingredient_name!] = [];
+            }
+            
+            grouped[operation][specific][ingredient_name!] = items;
+        });
+        
+        return grouped;
+    }, [preprocessingLookup]);
+
+    // Direct database update function - parent handles optimization
+    const updateDatabase = useCallback((operation: string, ingredient: string, specific: string, completed: boolean) => {
+        if (props.onToggleAllPreprocessingInstances) {
+            props.onToggleAllPreprocessingInstances(operation, ingredient, specific, completed);
+        }
+    }, [props]);
+
+    // Optimized toggle function with O(1) lookup and optimistic updates
+    const toggleCompleted = useCallback((operation: string, specific: string, ingredient: string) => {
+        const lookupKey = `${operation}-${specific}-${ingredient}`;
+        const matchingItems = preprocessingLookup[lookupKey];
+        
+        if (!matchingItems || matchingItems.length === 0) return;
+        
+        // Determine new state
         const allCompleted = matchingItems.every(item => item.completed);
         const newCompleted = !allCompleted;
 
-        // Call the callback to update all matching instances
-        // Since we're matching by ingredient, we'll use the first item's instruction for the callback
-        if (props.onToggleAllPreprocessingInstances && matchingItems.length > 0) {
-            const firstItem = matchingItems[0];
-            props.onToggleAllPreprocessingInstances(operation, firstItem.ingredient_name!, specific, newCompleted);
-        }
-    };
+        // Optimistic update: Update UI immediately
+        setLocalPreprocessing(prevPreprocessing => 
+            prevPreprocessing.map(prep => {
+                if (prep.operation === operation && 
+                    prep.specific === specific && 
+                    prep.ingredient_name === ingredient) {
+                    return { ...prep, completed: newCompleted };
+                }
+                return prep;
+            })
+        );
+
+        // Direct database update (parent handles optimization)
+        updateDatabase(operation, ingredient, specific, newCompleted);
+    }, [preprocessingLookup, updateDatabase]);
+
+    // Memoized completion stats calculation
+    const getCompletionStats = useCallback((items: Preprocessing[]) => {
+        const totalCount = items.length;
+        const completedCount = items.filter(item => item.completed).length;
+        const allCompleted = completedCount === totalCount;
+        
+        return { totalCount, completedCount, allCompleted };
+    }, []);
 
     return (
         <>
@@ -70,7 +121,7 @@ export default function PreprocessingList(props: {
                     await closePreprocessingList();
                 }}
             >
-                <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup p-10 max-h-[1200px] max-w-[1000px] overflow-scroll scrollbar-hide"
+                <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup p-10 max-h-[1200px] max-w-[1000px] overflow-scroll scrollbar-hide text-2xl"
                     onClick={(e) => {
                         e.stopPropagation();
                     }}>
@@ -84,24 +135,20 @@ export default function PreprocessingList(props: {
                                         <h3 className="text-xl font-semibold text-gray-700 capitalize">{specific}:</h3>
                                         
                                         {Object.entries(ingredientGroups).map(([ingredient, items]) => {
-                                            // Since items with same operation, specific, and ingredient are grouped together,
-                                            // we can use the first item as representative and count completion
                                             const representativeItem = items[0];
-                                            const totalCount = items.length;
-                                            const completedCount = items.filter(item => item.completed).length;
-                                            const allCompleted = completedCount === totalCount;
+                                            const { totalCount, completedCount, allCompleted } = getCompletionStats(items);
                                             
                                             return (
                                                 <div 
                                                     key={ingredient}
-                                                    className="ml-8 flex flex-row items-center gap-4 cursor-pointer"
+                                                    className="ml-8 flex flex-row items-center gap-4 cursor-pointer hover:bg-gray-100 rounded-lg p-2 transition-colors"
                                                     onClick={() => toggleCompleted(representativeItem.operation, representativeItem.specific, representativeItem.ingredient_name!)}
                                                 >
-                                                    <div className={`border-4 ${allCompleted ? 'border-green-500' : 'border-current'} rounded-xl p-2`}>
-                                                        <div className={`w-4 h-4 ${allCompleted ? 'bg-green-500' : 'bg-transparent'}`} />
+                                                    <div className={`border-4 ${allCompleted ? 'border-green-500' : 'border-current'} rounded-xl p-2 transition-colors`}>
+                                                        <div className={`w-4 h-4 ${allCompleted ? 'bg-green-500' : 'bg-transparent'} transition-colors`} />
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <p className={`text-lg ${allCompleted ? 'line-through text-gray-500' : 'text-[#B1454A]'}`}>
+                                                        <p className={`text-lg ${allCompleted ? 'line-through text-gray-500' : 'text-[#B1454A]'} transition-colors`}>
                                                             <span className="font-medium capitalize">{representativeItem.ingredient_name}</span> {representativeItem.instruction}
                                                             {completedCount > 0 && completedCount < totalCount ? ` | ${completedCount} of ${totalCount} completed` : ''}
                                                         </p>
