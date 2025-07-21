@@ -521,34 +521,23 @@ export default function QuantitativeNutrition(props: {
         setLoadingRecipes(loadingStates);
 
         try {
+            // Preserve original cook dates from existing recipes
+            const originalCookDates = selectedIndices.map(index => recipesDetails[index].cook_date);
+            
             // First, delete the selected recipes from the database
             const recipesToDelete = selectedIndices.map(index => recipesDetails[index]).filter(Boolean);
             await onSelectiveDelete(recipesToDelete);
 
-            // Calculate targets for selected recipes with unique cook dates to preserve order
-            const baseDates = [
-                new Date(new Date().setDate(new Date().getDate() + 1)), // Sunday cook
-                new Date(new Date().setDate(new Date().getDate() + 1)), // Sunday cook  
-                new Date(new Date().setDate(new Date().getDate() + 4)), // Wednesday cook
-                new Date(new Date().setDate(new Date().getDate() + 5))  // Thursday cook
-            ];
-            
-            // Add unique time offsets to preserve order within same cooking day
-            const cookDates = baseDates.map((date, index) => {
-                const uniqueDate = new Date(date);
-                uniqueDate.setMinutes(uniqueDate.getMinutes() + index); // Add minutes offset for ordering
-                return uniqueDate;
-            });
-
-            const mealTypes: [number, number, number, Date][] = [
+            // Calculate nutritional targets for selected recipes
+            const mealTypes: [number, number, number][] = [
                 // Sunday cook - Lunch M,T,W
-                [Math.round(3 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.5 * (fat - dailyBreakfastFat)), cookDates[0]], 
+                [Math.round(3 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.5 * (fat - dailyBreakfastFat))], 
                 // Sunday cook - Dinner S,M,T,W
-                [Math.round(4 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.5 * (fat - dailyBreakfastFat)), cookDates[1]], 
+                [Math.round(4 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.5 * (fat - dailyBreakfastFat))], 
                 // Wednesday cook - Lunch T,F,S,S
-                [Math.round(3 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.3 * (fat - dailyBreakfastFat)), cookDates[2]],
+                [Math.round(3 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.3 * (fat - dailyBreakfastFat))],
                 // Thursday cook - Dinner T,F,S
-                [Math.round(4 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.3 * (fat - dailyBreakfastFat)), cookDates[3]]
+                [Math.round(4 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.3 * (fat - dailyBreakfastFat))]
             ];
 
             // Use selected reroll cuisines for reroll
@@ -559,8 +548,11 @@ export default function QuantitativeNutrition(props: {
             
             const newRecipesData = new Map();
 
-            // Generate each recipe's data individually
-            for (const index of selectedIndices) {
+            // Generate each recipe's data individually, preserving original order and cook dates
+            for (let i = 0; i < selectedIndices.length; i++) {
+                const index = selectedIndices[i];
+                const originalCookDate = originalCookDates[i];
+                
                 try {
                     const mealType = mealTypes[index];
                     
@@ -578,7 +570,7 @@ export default function QuantitativeNutrition(props: {
                             calorieTarget: mealType[0],
                             proteinTarget: mealType[1],
                             fatTarget: mealType[2],
-                            cookDate: mealType[3],
+                            cookDate: originalCookDate, // Use the original cook date to preserve order
                         }),
                     });
 
@@ -693,18 +685,16 @@ export default function QuantitativeNutrition(props: {
                 }
             });
 
-            // The individual API calls above already inserted new recipes, ingredients, 
-            // preprocessing, and steps into the database. The data is now correctly 
-            // stored with proper foreign key relationships.
-            
             // Update wallet first
             await onWalletUpdate(selectedIndices.length * 0.03, selectedIndices.length);
             
-            // Reload the page to refresh all data from the database
-            // This ensures we get the updated data with correct foreign key relationships
-            // and preserves the order since recipes are inserted with the same cook_date
-            console.log('Successfully rerolled selected recipes! Refreshing data...');
-            window.location.reload();
+            // Update the component state with the new data
+            // This preserves the order and positions without needing a page reload
+            console.log('Successfully rerolled selected recipes! Updating component state...');
+            await props.onUpdateAll(newRecipes);
+            await onUpdateShoppingList(newIngredients);
+            await onUpdatePreprocessing(newPreprocessing);
+            await onUpdateSteps(newSteps);
             
             // Reset UI state after successful reroll
             setCustomCuisine("...");
