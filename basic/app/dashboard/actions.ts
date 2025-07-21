@@ -305,6 +305,7 @@ export async function updateMultiplePreprocessing(user_id: UUID, preprocessing: 
     operation: string,
     specific: string,
     instruction: string,
+    completed: boolean,
     updated_at: string
 }>) {
     const supabase = await createClient();

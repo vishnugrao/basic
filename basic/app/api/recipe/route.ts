@@ -189,7 +189,8 @@ export async function POST(req: Request) {
                 ingredient_name: prep.ingredient_name,
                 operation: prep.operation,
                 specific: prep.specific,
-                instruction: prep.instruction
+                instruction: prep.instruction,
+                completed: false
             };
         });
 

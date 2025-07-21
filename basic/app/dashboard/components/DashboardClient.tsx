@@ -6,7 +6,7 @@ import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients, updateWallet } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateWallet } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -135,10 +135,15 @@ export default function DashboardClient({
 
     const handleIngredientsUpdate = async (updates: Ingredient[]) => {
         try {
-            await updateMultipleIngredients(updates.map(ingredient => ({
+            await updateMultipleIngredients(userDetails.id, updates.map(ingredient => ({
                 purchased: ingredient.purchased,
                 user_id: ingredient.user_id,
                 id: ingredient.id,
+                recipe_id: ingredient.recipe_id,
+                name: ingredient.name,
+                amount: ingredient.amount,
+                metric: ingredient.metric,
+                created_at: ingredient.created_at,
                 updated_at: new Date().toISOString()
             })));
             setIngredientsDetails(updates);
@@ -149,7 +154,24 @@ export default function DashboardClient({
     }; 
 
     const handlePreprocessingUpdate = async (updates: Preprocessing[]) => {
-        setPreprocessingDetails(updates);
+        try {
+            await updateMultiplePreprocessing(userDetails.id, updates.map(preprocessing => ({
+                id: preprocessing.id,
+                user_id: preprocessing.user_id,
+                recipe_id: preprocessing.recipe_id,
+                ingredient_id: preprocessing.ingredient_id,
+                ingredient_name: preprocessing.ingredient_name || '',
+                operation: preprocessing.operation,
+                specific: preprocessing.specific,
+                instruction: preprocessing.instruction,
+                completed: preprocessing.completed ?? false,
+                updated_at: new Date().toISOString()
+            })));
+            setPreprocessingDetails(updates);
+            console.log('Preprocessing database update completed successfully');
+        } catch (error) {
+            console.error('Error updating preprocessing:', error);
+        }
     }
 
     const handleStepsUpdate = async (updates: Step[]) => {

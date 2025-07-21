@@ -107,9 +107,9 @@ export default function QuantitativeNutrition(props: {
     }
 
     // Toggle all instances of a preprocessing step across all recipes
-    const toggleAllPreprocessingInstances = async (operation: string, instruction: string, specific: string, completed: boolean) => {
+    const toggleAllPreprocessingInstances = async (operation: string, ingredient: string, specific: string, completed: boolean) => {
         const updatedPreprocessing = preprocessingDetails.map(prep => {
-            if (prep.operation === operation && prep.instruction === instruction && prep.specific === specific) {
+            if (prep.operation === operation && prep.ingredient_name === ingredient && prep.specific === specific) {
                 return { ...prep, completed };
             }
             return prep;
@@ -176,15 +176,21 @@ export default function QuantitativeNutrition(props: {
             aggregated[key].push(prep);
         });
 
-        // Create aggregated list with "all or nothing" logic
+        // Create aggregated list with "all or nothing" logic and completion tracking
         const result: Preprocessing[] = [];
         Object.values(aggregated).forEach(group => {
             const allCompleted = group.every(prep => prep.completed);
+            const completedCount = group.filter(prep => prep.completed).length;
+            const totalCount = group.length;
             
-            // Use the first preprocessing as template, but check all completed
+            // Use the first preprocessing as template, but check all completed and add tracking info
             const aggregatedPreprocessing: Preprocessing = {
                 ...group[0],
-                completed: allCompleted
+                completed: allCompleted,
+                completedCount: completedCount,
+                totalCount: totalCount,
+                ids: group.map(prep => prep.id),
+                recipe_ids: group.map(prep => prep.recipe_id)
             };
             
             result.push(aggregatedPreprocessing);
