@@ -121,18 +121,18 @@ export default function PreprocessingList(props: {
                     await closePreprocessingList();
                 }}
             >
-                <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup p-10 max-h-[1200px] max-w-[1000px] overflow-scroll scrollbar-hide text-2xl"
+                <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup p-10 max-h-[1200px] max-w-[1000px] overflow-scroll scrollbar-hide"
                     onClick={(e) => {
                         e.stopPropagation();
                     }}>
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col gap-4">
                         {Object.entries(groupedPreprocessing).map(([operation, specificGroups]) => (
-                            <div key={operation} className="flex flex-col gap-4">
-                                <h2 className="text-2xl font-bold text-[#B1454A] capitalize">{operation}:</h2>
+                            <div key={operation} className="flex flex-col gap-2">
+                                <h2 className="text-2xl font-medium text-[#B1454A] capitalize">{operation}</h2>
                                 
                                 {Object.entries(specificGroups).map(([specific, ingredientGroups]) => (
-                                    <div key={specific} className="ml-4 flex flex-col gap-3">
-                                        <h3 className="text-xl font-semibold text-gray-700 capitalize">{specific}:</h3>
+                                    <div key={specific} className="ml-4 flex flex-col gap-2">
+                                        <h3 className="text-2xl font-medium text-[#B1454A] capitalize">{specific}</h3>
                                         
                                         {Object.entries(ingredientGroups).map(([ingredient, items]) => {
                                             const representativeItem = items[0];
@@ -141,14 +141,14 @@ export default function PreprocessingList(props: {
                                             return (
                                                 <div 
                                                     key={ingredient}
-                                                    className="ml-8 flex flex-row items-center gap-4 cursor-pointer hover:bg-gray-100 rounded-lg p-2 transition-colors"
+                                                    className="ml-4 flex flex-row items-center gap-4 cursor-pointer hover:bg-gray-100 rounded-lg p-2 transition-colors"
                                                     onClick={() => toggleCompleted(representativeItem.operation, representativeItem.specific, representativeItem.ingredient_name!)}
                                                 >
                                                     <div className={`border-4 ${allCompleted ? 'border-green-500' : 'border-current'} rounded-xl p-2 transition-colors`}>
                                                         <div className={`w-4 h-4 ${allCompleted ? 'bg-green-500' : 'bg-transparent'} transition-colors`} />
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <p className={`text-lg ${allCompleted ? 'line-through text-gray-500' : 'text-[#B1454A]'} transition-colors`}>
+                                                        <p className={`text-xl ${allCompleted ? 'line-through text-gray-500' : 'text-[#B1454A]'} transition-colors`}>
                                                             <span className="font-medium capitalize">{representativeItem.ingredient_name}</span> {representativeItem.instruction}
                                                             {completedCount > 0 && completedCount < totalCount ? ` | ${completedCount} of ${totalCount} completed` : ''}
                                                         </p>
