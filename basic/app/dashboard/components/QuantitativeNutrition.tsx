@@ -520,6 +520,9 @@ export default function QuantitativeNutrition(props: {
         });
         setLoadingRecipes(loadingStates);
 
+        // First, remove old data for selected recipes
+        const selectedRecipeIds = selectedIndices.map(index => recipesDetails[index].id);
+
         try {
             // Preserve original cook dates from existing recipes
             const originalCookDates = selectedIndices.map(index => recipesDetails[index].cook_date);
@@ -546,12 +549,36 @@ export default function QuantitativeNutrition(props: {
             // Build existing recipe names for context (excluding selected ones)
             const existingRecipeNames: Recipe[] = recipesDetails.filter((_, index) => !selectedIndices.includes(index));
             
-            const newRecipesData = new Map();
+            // Create a shared state to track completed recipes and avoid race conditions
+            const completedRecipes = new Map<number, { recipe: Recipe, ingredients: Ingredient[], preprocessing: Preprocessing[], steps: Step[] }>();
+            
+            // Reactive update function that safely updates UI when each recipe completes
+            const applyReactiveUpdate = async () => {
+                // Build the updated arrays from current state plus completed recipes
+                const updatedRecipes = [...recipesDetails];
+                const updatedIngredients = ingredientsDetails.filter(ing => !selectedRecipeIds.includes(ing.recipe_id));
+                const updatedPreprocessing = preprocessingDetails.filter(prep => !selectedRecipeIds.includes(prep.recipe_id));
+                const updatedSteps = stepsDetails.filter(step => !selectedRecipeIds.includes(step.recipe_id));
 
-            // Generate each recipe's data individually, preserving original order and cook dates
-            for (let i = 0; i < selectedIndices.length; i++) {
-                const index = selectedIndices[i];
+                // Apply completed recipes in the correct order
+                completedRecipes.forEach((data, index) => {
+                    updatedRecipes[index] = data.recipe;
+                    updatedIngredients.push(...data.ingredients);
+                    updatedPreprocessing.push(...data.preprocessing);
+                    updatedSteps.push(...data.steps);
+                });
+
+                // Update the UI
+                await props.onUpdateAll(updatedRecipes);
+                await onUpdateShoppingList(updatedIngredients);
+                await onUpdatePreprocessing(updatedPreprocessing);
+                await onUpdateSteps(updatedSteps);
+            };
+
+            // Generate each recipe's data in parallel, preserving original order and cook dates
+            const recipePromises = selectedIndices.map(async (index, i) => {
                 const originalCookDate = originalCookDates[i];
+                const originalRecipeId = selectedRecipeIds[i];
                 
                 try {
                     const mealType = mealTypes[index];
@@ -588,9 +615,6 @@ export default function QuantitativeNutrition(props: {
                         throw new Error('Invalid recipe data received');
                     }
 
-                    existingRecipeNames.push(recipe);
-                    newRecipesData.set(index, { recipe, ingredients, preprocessing, steps });
-
                     // Save new recipe data to database individually
                     await fetch('/api/ingredient', {
                         method: 'POST',
@@ -610,12 +634,36 @@ export default function QuantitativeNutrition(props: {
                         body: JSON.stringify({ steps }),
                     });
 
+                    // Prepare corrected preprocessing
+                    const correctedPreprocessing = preprocessing.map((prep: Preprocessing) => {
+                        const matchingIngredient = ingredients.find((ing: Ingredient) => 
+                            ing.name.toLowerCase() === prep.ingredient_name?.toLowerCase()
+                        );
+                        return {
+                            ...prep,
+                            ingredient_id: matchingIngredient?.id || prep.ingredient_id
+                        };
+                    });
+
+                    // Store completed recipe data
+                    completedRecipes.set(index, {
+                        recipe,
+                        ingredients,
+                        preprocessing: correctedPreprocessing,
+                        steps
+                    });
+
                     // Update loading state for this specific recipe
                     setLoadingRecipes(prev => {
                         const newState = [...prev];
                         newState[index] = false;
                         return newState;
                     });
+
+                    // Apply reactive update immediately when this recipe completes
+                    await applyReactiveUpdate();
+
+                    return { index, recipe, ingredients, preprocessing: correctedPreprocessing, steps, originalRecipeId };
                     
                 } catch (error) {
                     setLoadingRecipes(prev => {
@@ -625,78 +673,14 @@ export default function QuantitativeNutrition(props: {
                     });
                     throw error;
                 }
-            }
-
-            // Build new arrays maintaining order - replace selected indices with new data
-            const newRecipes = [...recipesDetails];
-            const newIngredients: Ingredient[] = [];
-            const newPreprocessing: Preprocessing[] = [];
-            const newSteps: Step[] = [];
-
-            // First, remove old data for selected recipes
-            const selectedRecipeIds = selectedIndices.map(index => recipesDetails[index].id);
-            
-            // Filter out ingredients, preprocessing, and steps for selected recipes
-            ingredientsDetails.forEach(ingredient => {
-                if (!selectedRecipeIds.includes(ingredient.recipe_id)) {
-                    newIngredients.push(ingredient);
-                }
-            });
-            
-            preprocessingDetails.forEach(prep => {
-                if (!selectedRecipeIds.includes(prep.recipe_id)) {
-                    newPreprocessing.push(prep);
-                }
-            });
-            
-            stepsDetails.forEach(step => {
-                if (!selectedRecipeIds.includes(step.recipe_id)) {
-                    newSteps.push(step);
-                }
             });
 
-            // Replace recipes at their original indices and add new data
-            selectedIndices.forEach(index => {
-                const recipeData = newRecipesData.get(index);
-                if (recipeData) {
-                    const { recipe, ingredients, preprocessing, steps } = recipeData;
-                    
-                    // Replace recipe at original index
-                    newRecipes[index] = recipe;
-                    
-                    // Add new ingredients
-                    newIngredients.push(...ingredients);
-                    
-                    // Add new preprocessing with corrected ingredient_id references
-                    const correctedPreprocessing = preprocessing.map((prep: Preprocessing) => {
-                        // Find the corresponding ingredient in our ingredients array
-                        const matchingIngredient = ingredients.find((ing: Ingredient) => 
-                            ing.name.toLowerCase() === prep.ingredient_name?.toLowerCase()
-                        );
-                        return {
-                            ...prep,
-                            ingredient_id: matchingIngredient?.id || prep.ingredient_id
-                        };
-                    });
-                    newPreprocessing.push(...correctedPreprocessing);
-                    
-                    // Add new steps
-                    newSteps.push(...steps);
-                }
-            });
+            // Wait for all recipes to complete
+            await Promise.all(recipePromises);
 
-            // Update wallet first
+            // Update wallet after all recipes are completed
             await onWalletUpdate(selectedIndices.length * 0.03, selectedIndices.length);
             
-            // Update the component state with the new data
-            // This preserves the order and positions without needing a page reload
-            console.log('Successfully rerolled selected recipes! Updating component state...');
-            await props.onUpdateAll(newRecipes);
-            await onUpdateShoppingList(newIngredients);
-            await onUpdatePreprocessing(newPreprocessing);
-            await onUpdateSteps(newSteps);
-            
-            // Reset UI state after successful reroll
             setCustomCuisine("...");
             setSelectedRerollCuisines(mealPlan.cuisines);
         } catch (error) {
