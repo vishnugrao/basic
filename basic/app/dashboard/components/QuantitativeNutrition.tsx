@@ -506,6 +506,10 @@ export default function QuantitativeNutrition(props: {
         setLoadingRecipes(loadingStates);
 
         try {
+            // First, delete the selected recipes from the database
+            const recipesToDelete = selectedIndices.map(index => recipesDetails[index]).filter(Boolean);
+            await onSelectiveDelete(recipesToDelete);
+
             // Calculate targets for selected recipes
             const mealTypes: [number, number, number, Date][] = [
                 // Sunday cook - Lunch M,T,W
@@ -521,13 +525,8 @@ export default function QuantitativeNutrition(props: {
             // Use selected reroll cuisines for reroll
             const cuisinesToUse = selectedRerollCuisines.length > 0 ? selectedRerollCuisines : mealPlan.cuisines.slice(0, 4);
 
-            // STEP 1: Delete only selected recipes and their data
-            const recipesToDelete = selectedIndices.map(index => recipesDetails[index]).filter(Boolean);
-            await onSelectiveDelete(recipesToDelete);
-
-            // STEP 2: Generate new recipe data without using generateSingleRecipe
-            const preservedRecipes = recipesDetails.filter((_, index) => !selectedRecipes.has(index));
-            const existingRecipeNames: Recipe[] = [...preservedRecipes];
+            // Build existing recipe names for context (excluding selected ones)
+            const existingRecipeNames: Recipe[] = recipesDetails.filter((_, index) => !selectedIndices.includes(index));
             
             const newRecipesData = new Map();
 
@@ -571,7 +570,7 @@ export default function QuantitativeNutrition(props: {
                     existingRecipeNames.push(recipe);
                     newRecipesData.set(index, { recipe, ingredients, preprocessing, steps });
 
-                    // Save to database individually (this avoids bulk operations)
+                    // Save new recipe data to database individually
                     await fetch('/api/ingredient', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -607,25 +606,76 @@ export default function QuantitativeNutrition(props: {
                 }
             }
 
-            // STEP 3: Manually update state without triggering bulk operations
-            // Add new recipes to state one by one to avoid bulk triggers
-            for (const recipeData of newRecipesData.values()) {
-                const { recipe, ingredients, preprocessing, steps } = recipeData;
-                
-                // Add recipe to state manually
-                await props.onAppend({
-                    ...recipe,
-                    ingredients,
-                    preprocessing,
-                    steps
-                });
-            }
+            // Build new arrays maintaining order - replace selected indices with new data
+            const newRecipes = [...recipesDetails];
+            const newIngredients: Ingredient[] = [];
+            const newPreprocessing: Preprocessing[] = [];
+            const newSteps: Step[] = [];
+
+            // First, remove old data for selected recipes
+            const selectedRecipeIds = selectedIndices.map(index => recipesDetails[index].id);
             
-            // Update wallet after successful reroll
-            const selectedCount = selectedRecipes.size;
-            await onWalletUpdate(selectedCount * 0.03, selectedCount);
+            // Filter out ingredients, preprocessing, and steps for selected recipes
+            ingredientsDetails.forEach(ingredient => {
+                if (!selectedRecipeIds.includes(ingredient.recipe_id)) {
+                    newIngredients.push(ingredient);
+                }
+            });
             
-            console.log('Successfully rerolled selected recipes!');
+            preprocessingDetails.forEach(prep => {
+                if (!selectedRecipeIds.includes(prep.recipe_id)) {
+                    newPreprocessing.push(prep);
+                }
+            });
+            
+            stepsDetails.forEach(step => {
+                if (!selectedRecipeIds.includes(step.recipe_id)) {
+                    newSteps.push(step);
+                }
+            });
+
+            // Replace recipes at their original indices and add new data
+            selectedIndices.forEach(index => {
+                const recipeData = newRecipesData.get(index);
+                if (recipeData) {
+                    const { recipe, ingredients, preprocessing, steps } = recipeData;
+                    
+                    // Replace recipe at original index
+                    newRecipes[index] = recipe;
+                    
+                    // Add new ingredients
+                    newIngredients.push(...ingredients);
+                    
+                    // Add new preprocessing with corrected ingredient_id references
+                    const correctedPreprocessing = preprocessing.map((prep: Preprocessing) => {
+                        // Find the corresponding ingredient in our ingredients array
+                        const matchingIngredient = ingredients.find((ing: Ingredient) => 
+                            ing.name.toLowerCase() === prep.ingredient_name?.toLowerCase()
+                        );
+                        return {
+                            ...prep,
+                            ingredient_id: matchingIngredient?.id || prep.ingredient_id
+                        };
+                    });
+                    newPreprocessing.push(...correctedPreprocessing);
+                    
+                    // Add new steps
+                    newSteps.push(...steps);
+                }
+            });
+
+            // The individual API calls above already inserted new recipes, ingredients, 
+            // preprocessing, and steps into the database. The data is now correctly 
+            // stored with proper foreign key relationships.
+            
+            // Update wallet first
+            await onWalletUpdate(selectedIndices.length * 0.03, selectedIndices.length);
+            
+            // Reload the page to refresh all data from the database
+            // This ensures we get the updated data with correct foreign key relationships
+            // and preserves the order since recipes are inserted with the same cook_date
+            console.log('Successfully rerolled selected recipes! Refreshing data...');
+            window.location.reload();
             
             // Reset UI state after successful reroll
             setCustomCuisine("...");

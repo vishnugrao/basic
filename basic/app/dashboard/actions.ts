@@ -1,6 +1,6 @@
 'use server'
 
-import { Recipe } from "@/types/types";
+import { Recipe, Ingredient, Preprocessing } from "@/types/types";
 import { createClient } from "@/utils/supabase/server";
 import { UUID } from "crypto";
 import { redirect } from "next/navigation";
@@ -217,12 +217,7 @@ export async function updateIngredientsById(ingredientDetails: {
     }
 }
 
-export async function updateMultipleIngredients(user_id: UUID, ingredients: Array<{
-    purchased: boolean,
-    user_id: UUID,
-    id: UUID, 
-    updated_at: string
-}>) {
+export async function updateMultipleIngredients(user_id: UUID, ingredients: Ingredient[]) {
     const supabase = await createClient();
     try {
         // Note: This is not a true transaction. If you need true atomicity, use a Postgres function or RPC.
@@ -238,9 +233,17 @@ export async function updateMultipleIngredients(user_id: UUID, ingredients: Arra
         }
 
         console.log('[INGREDIENTS] Inserting new ingredients batch for user:', user_id);
+        
+        // Ensure created_at is set for all ingredients
+        const ingredientsWithTimestamps = ingredients.map(ingredient => ({
+            ...ingredient,
+            created_at: ingredient.created_at || new Date().toISOString(),
+            updated_at: ingredient.updated_at || new Date().toISOString()
+        }));
+        
         const { error: insertError } = await supabase
             .from('Ingredients')
-            .insert(ingredients);
+            .insert(ingredientsWithTimestamps);
 
         if (insertError) {
             console.log('[INGREDIENTS] Error inserting ingredients:', insertError);
@@ -325,18 +328,7 @@ export async function updateSpecificPreprocessing(user_id: UUID, operation: stri
 }
 
 // Batch update for PreProcessing (not a true transaction, see note above)
-export async function updateMultiplePreprocessing(user_id: UUID, preprocessing: Array<{
-    id: UUID,
-    user_id: UUID,
-    recipe_id: UUID,
-    ingredient_id: UUID | null,
-    ingredient_name: string,
-    operation: string,
-    specific: string,
-    instruction: string,
-    completed: boolean,
-    updated_at: string
-}>) {
+export async function updateMultiplePreprocessing(user_id: UUID, preprocessing: Preprocessing[]) {
     const supabase = await createClient();
     try {
         console.log('[PREPROCESSING] Deleting all preprocessing for user:', user_id);
@@ -351,9 +343,17 @@ export async function updateMultiplePreprocessing(user_id: UUID, preprocessing: 
         }
 
         console.log('[PREPROCESSING] Inserting new preprocessing batch for user:', user_id);
+        
+        // Ensure created_at is set for all preprocessing
+        const preprocessingWithTimestamps = preprocessing.map(prep => ({
+            ...prep,
+            created_at: prep.created_at || new Date().toISOString(),
+            updated_at: prep.updated_at || new Date().toISOString()
+        }));
+        
         const { error: insertError } = await supabase
             .from('Preprocessing')
-            .insert(preprocessing);
+            .insert(preprocessingWithTimestamps);
 
         if (insertError) {
             console.log('[PREPROCESSING] Error inserting preprocessing:', insertError);
