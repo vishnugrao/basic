@@ -193,7 +193,8 @@ export default function DashboardClient({
                 specific: preprocessing.specific,
                 instruction: preprocessing.instruction,
                 completed: preprocessing.completed ?? false,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                created_at: preprocessing.created_at || new Date().toISOString()
             })));
             setPreprocessingDetails(updates);
             console.log('Preprocessing database update completed successfully');

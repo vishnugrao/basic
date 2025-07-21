@@ -63,7 +63,7 @@ export async function getSearchSet(user_id: UUID) {
 
 export async function getRecipes(user_id: UUID) {
     const supabase = await createClient()
-    const { data, error } = await supabase.from('Recipes').select('*').eq('user_id', user_id)
+    const { data, error } = await supabase.from('Recipes').select('*').eq('user_id', user_id).order('cook_date', { ascending: true })
 
     if (error) {
         redirect('/error')

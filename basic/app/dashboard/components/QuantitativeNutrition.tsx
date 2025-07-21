@@ -414,15 +414,30 @@ export default function QuantitativeNutrition(props: {
                 throw new Error('Meal plan or cuisines not available');
             }
 
+            // Calculate unique cook dates to preserve order
+            const baseDates = [
+                new Date(new Date().setDate(new Date().getDate() + 1)), // Sunday cook
+                new Date(new Date().setDate(new Date().getDate() + 1)), // Sunday cook  
+                new Date(new Date().setDate(new Date().getDate() + 4)), // Wednesday cook
+                new Date(new Date().setDate(new Date().getDate() + 5))  // Thursday cook
+            ];
+            
+            // Add unique time offsets to preserve order within same cooking day
+            const cookDates = baseDates.map((date, index) => {
+                const uniqueDate = new Date(date);
+                uniqueDate.setMinutes(uniqueDate.getMinutes() + index); // Add minutes offset for ordering
+                return uniqueDate;
+            });
+
             const mealTypes: [number, number, number, Date][] = [
                 // Sunday cook - Lunch M,T,W
-                [Math.round(3 * 0.5 * targetCalories), Math.round(3 * 0.6 * targetProtein), Math.round(3 * 0.5 * targetFat), new Date(new Date().setDate(new Date().getDate() + 1))], 
+                [Math.round(3 * 0.5 * targetCalories), Math.round(3 * 0.6 * targetProtein), Math.round(3 * 0.5 * targetFat), cookDates[0]], 
                 // Sunday cook - Dinner S,M,T,W
-                [Math.round(4 * 0.5 * targetCalories), Math.round(4 * 0.6 * targetProtein), Math.round(4 * 0.5 * targetFat), new Date(new Date().setDate(new Date().getDate() + 1))], 
+                [Math.round(4 * 0.5 * targetCalories), Math.round(4 * 0.6 * targetProtein), Math.round(4 * 0.5 * targetFat), cookDates[1]], 
                 // Wednesday cook - Lunch T,F,S,S
-                [Math.round(3 * 0.3 * targetCalories), Math.round(3 * 0.3 * targetProtein), Math.round(3 * 0.3 * targetFat), new Date(new Date().setDate(new Date().getDate() + 4))], 
+                [Math.round(3 * 0.3 * targetCalories), Math.round(3 * 0.3 * targetProtein), Math.round(3 * 0.3 * targetFat), cookDates[2]], 
                 // Thursday cook - Dinner T,F,S
-                [Math.round(4 * 0.3 * targetCalories), Math.round(4 * 0.3 * targetProtein), Math.round(4 * 0.3 * targetFat), new Date(new Date().setDate(new Date().getDate() + 5))]
+                [Math.round(4 * 0.3 * targetCalories), Math.round(4 * 0.3 * targetProtein), Math.round(4 * 0.3 * targetFat), cookDates[3]]
             ];
 
             const existingRecipeNames: Recipe[] = [];
@@ -510,16 +525,30 @@ export default function QuantitativeNutrition(props: {
             const recipesToDelete = selectedIndices.map(index => recipesDetails[index]).filter(Boolean);
             await onSelectiveDelete(recipesToDelete);
 
-            // Calculate targets for selected recipes
+            // Calculate targets for selected recipes with unique cook dates to preserve order
+            const baseDates = [
+                new Date(new Date().setDate(new Date().getDate() + 1)), // Sunday cook
+                new Date(new Date().setDate(new Date().getDate() + 1)), // Sunday cook  
+                new Date(new Date().setDate(new Date().getDate() + 4)), // Wednesday cook
+                new Date(new Date().setDate(new Date().getDate() + 5))  // Thursday cook
+            ];
+            
+            // Add unique time offsets to preserve order within same cooking day
+            const cookDates = baseDates.map((date, index) => {
+                const uniqueDate = new Date(date);
+                uniqueDate.setMinutes(uniqueDate.getMinutes() + index); // Add minutes offset for ordering
+                return uniqueDate;
+            });
+
             const mealTypes: [number, number, number, Date][] = [
                 // Sunday cook - Lunch M,T,W
-                [Math.round(3 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.5 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 1))], 
+                [Math.round(3 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.5 * (fat - dailyBreakfastFat)), cookDates[0]], 
                 // Sunday cook - Dinner S,M,T,W
-                [Math.round(4 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.5 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 1))], 
+                [Math.round(4 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.5 * (fat - dailyBreakfastFat)), cookDates[1]], 
                 // Wednesday cook - Lunch T,F,S,S
-                [Math.round(3 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.3 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 4))],
+                [Math.round(3 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.3 * (fat - dailyBreakfastFat)), cookDates[2]],
                 // Thursday cook - Dinner T,F,S
-                [Math.round(4 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.3 * (fat - dailyBreakfastFat)), new Date(new Date().setDate(new Date().getDate() + 5))]
+                [Math.round(4 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.3 * (fat - dailyBreakfastFat)), cookDates[3]]
             ];
 
             // Use selected reroll cuisines for reroll
