@@ -194,6 +194,7 @@ export default function DashboardClient({
                     userDetails={userDetails} 
                     goalDetails={goalDetails}
                     mealPlan={mealPlan}
+                    searchSet={searchSet}
                     recipesDetails={recipesDetails}
                     ingredientsDetails={ingredientsDetails}
                     preprocessingDetails={preprocessingDetails}
