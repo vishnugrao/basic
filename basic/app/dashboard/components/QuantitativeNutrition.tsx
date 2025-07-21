@@ -41,6 +41,7 @@ export default function QuantitativeNutrition(props: {
     stepsDetails: Step[], 
     onUpdateAll: (updates: Recipe[]) => Promise<void>, 
     onAppend: (addition: RecipeWithData) => Promise<void>, 
+    onSelectiveDelete: (recipesToDelete: Recipe[]) => Promise<void>,
     isShoppingListOpen: boolean, 
     setIsShoppingListOpen: Dispatch<SetStateAction<boolean>>, 
     onUpdateShoppingList: (updates: Ingredient[]) => Promise<void>, 
@@ -53,7 +54,7 @@ export default function QuantitativeNutrition(props: {
     const { userDetails, goalDetails, mealPlan, searchSet, recipesDetails, 
         ingredientsDetails, preprocessingDetails, stepsDetails, 
         isShoppingListOpen, setIsShoppingListOpen, onUpdateShoppingList, 
-        onUpdatePreprocessing, onUpdateSpecificPreprocessing, onUpdateSteps, onWalletUpdate, wallet } = props;
+        onUpdatePreprocessing, onUpdateSpecificPreprocessing, onUpdateSteps, onWalletUpdate, wallet, onSelectiveDelete } = props;
     const [tdee, setTDEE] = useState(0);
     const [offset, setOffset] = useState(0);
     const [protein, setProtein] = useState(0);
@@ -478,9 +479,11 @@ export default function QuantitativeNutrition(props: {
         }
     };
 
+
+
     const rerollSelectedRecipes = async () => {
         if (selectedRecipes.size === 0) {
-            console.log('No recipes selected for reroll');
+            // No recipes selected, nothing to reroll
             return;
         }
 
@@ -514,27 +517,75 @@ export default function QuantitativeNutrition(props: {
 
             // Use selected reroll cuisines for reroll
             const cuisinesToUse = selectedRerollCuisines.length > 0 ? selectedRerollCuisines : mealPlan.cuisines.slice(0, 4);
-            const existingRecipeNames: Recipe[] = [];
-            const existingIngredients: Ingredient[] = [];
-            const existingPreprocessing: Preprocessing[] = [];
-            const existingSteps: Step[] = [];
 
-            // Generate new recipes for selected indices
-            const recipePromises = selectedIndices.map(async (index) => {
+            // STEP 1: Delete only selected recipes and their data
+            const recipesToDelete = selectedIndices.map(index => recipesDetails[index]).filter(Boolean);
+            await onSelectiveDelete(recipesToDelete);
+
+            // STEP 2: Generate new recipe data without using generateSingleRecipe
+            const preservedRecipes = recipesDetails.filter((_, index) => !selectedRecipes.has(index));
+            const existingRecipeNames: Recipe[] = [...preservedRecipes];
+            
+            const newRecipesData = new Map();
+
+            // Generate each recipe's data individually
+            for (const index of selectedIndices) {
                 try {
                     const mealType = mealTypes[index];
-                    const { recipe, ingredients, preprocessing, steps } = await generateSingleRecipe(
-                        index,
-                        mealType[0],
-                        mealType[1], 
-                        mealType[2],
-                        mealType[3],
-                        existingRecipeNames,
-                        existingIngredients,
-                        existingPreprocessing,
-                        existingSteps,
-                        cuisinesToUse
-                    );
+                    
+                    // Call the recipe API to generate data only
+                    const response = await fetch('/api/recipe', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            userDetails,
+                            goalDetails,
+                            cuisines: cuisinesToUse,
+                            existingRecipes: existingRecipeNames,
+                            calorieTarget: mealType[0],
+                            proteinTarget: mealType[1],
+                            fatTarget: mealType[2],
+                            cookDate: mealType[3],
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to generate recipe');
+                    }
+
+                    const data = await response.json();
+                    const recipe = data.recipe;
+                    const ingredients = data.ingredients || [];
+                    const preprocessing = data.preprocessing || [];
+                    const steps = data.steps || [];
+
+                    if (!recipe || typeof recipe !== 'object') {
+                        throw new Error('Invalid recipe data received');
+                    }
+
+                    existingRecipeNames.push(recipe);
+                    newRecipesData.set(index, { recipe, ingredients, preprocessing, steps });
+
+                    // Save to database individually (this avoids bulk operations)
+                    await fetch('/api/ingredient', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ingredients }),
+                    });
+
+                    await fetch('/api/preprocessing', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ preprocessing }),
+                    });
+
+                    await fetch('/api/step', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ steps }),
+                    });
 
                     // Update loading state for this specific recipe
                     setLoadingRecipes(prev => {
@@ -543,9 +594,7 @@ export default function QuantitativeNutrition(props: {
                         return newState;
                     });
                     
-                    return { recipe, ingredients, preprocessing, steps, index };
                 } catch (error) {
-                    // Update loading state for this specific recipe even on error
                     setLoadingRecipes(prev => {
                         const newState = [...prev];
                         newState[index] = false;
@@ -553,12 +602,23 @@ export default function QuantitativeNutrition(props: {
                     });
                     throw error;
                 }
-            });
+            }
 
-            // Wait for all selected recipes to complete
-            await Promise.all(recipePromises);
+            // STEP 3: Manually update state without triggering bulk operations
+            // Add new recipes to state one by one to avoid bulk triggers
+            for (const recipeData of newRecipesData.values()) {
+                const { recipe, ingredients, preprocessing, steps } = recipeData;
+                
+                // Add recipe to state manually
+                await props.onAppend({
+                    ...recipe,
+                    ingredients,
+                    preprocessing,
+                    steps
+                });
+            }
             
-            // Update wallet after successful reroll (selected recipes * 3 cents each)
+            // Update wallet after successful reroll
             const selectedCount = selectedRecipes.size;
             await onWalletUpdate(selectedCount * 0.03, selectedCount);
             
@@ -566,7 +626,6 @@ export default function QuantitativeNutrition(props: {
             
             // Clear selection after successful reroll
             setSelectedRecipes(new Set());
-            // Reset cuisine input to top 4 cuisines
             setCustomCuisine("...");
             setSelectedRerollCuisines(mealPlan.cuisines);
         } catch (error) {

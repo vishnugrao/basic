@@ -376,6 +376,60 @@ export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {
     }
 }
 
+// Delete ingredients for specific recipe IDs
+export async function deleteIngredientsForRecipes(user_id: UUID, recipe_ids: UUID[]) {
+    const supabase = await createClient();
+    
+    for (const recipe_id of recipe_ids) {
+        const { error } = await supabase
+            .from('Ingredients')
+            .delete()
+            .eq('user_id', user_id)
+            .eq('recipe_id', recipe_id);
+
+        if (error) {
+            console.error(`Error deleting ingredients for recipe ${recipe_id}:`, error);
+            throw new Error(`Failed to delete ingredients: ${error.message}`);
+        }
+    }
+}
+
+// Delete preprocessing for specific recipe IDs
+export async function deletePreprocessingForRecipes(user_id: UUID, recipe_ids: UUID[]) {
+    const supabase = await createClient();
+    
+    for (const recipe_id of recipe_ids) {
+        const { error } = await supabase
+            .from('Preprocessing')
+            .delete()
+            .eq('user_id', user_id)
+            .eq('recipe_id', recipe_id);
+
+        if (error) {
+            console.error(`Error deleting preprocessing for recipe ${recipe_id}:`, error);
+            throw new Error(`Failed to delete preprocessing: ${error.message}`);
+        }
+    }
+}
+
+// Delete steps for specific recipe IDs
+export async function deleteStepsForRecipes(user_id: UUID, recipe_ids: UUID[]) {
+    const supabase = await createClient();
+    
+    for (const recipe_id of recipe_ids) {
+        const { error } = await supabase
+            .from('Steps')
+            .delete()
+            .eq('user_id', user_id)
+            .eq('recipe_id', recipe_id);
+
+        if (error) {
+            console.error(`Error deleting steps for recipe ${recipe_id}:`, error);
+            throw new Error(`Failed to delete steps: ${error.message}`);
+        }
+    }
+}
+
 export async function getWallet(user_id: UUID) {
     try {
         console.log('🔵 [WALLET] Fetching wallet for user:', user_id)

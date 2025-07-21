@@ -6,7 +6,7 @@ import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateWallet } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -133,6 +133,34 @@ export default function DashboardClient({
         }
     }
 
+    const handleRecipesSelectiveDelete = async (recipesToDelete: Recipe[]) => {
+        try {
+            // Step 1: Delete selected recipes and their data
+            const recipeIdsToDelete = recipesToDelete.map(recipe => recipe.id);
+            
+            // Delete recipes first
+            await Promise.all(recipesToDelete.map(recipe =>
+                deleteRecipes(recipe.user_id, recipe.id)
+            ));
+            
+            // Delete associated data
+            if (recipeIdsToDelete.length > 0) {
+                await deleteIngredientsForRecipes(userDetails.id, recipeIdsToDelete);
+                await deletePreprocessingForRecipes(userDetails.id, recipeIdsToDelete);
+                await deleteStepsForRecipes(userDetails.id, recipeIdsToDelete);
+            }
+
+            // Step 2: Update state to remove deleted recipes and their data
+            setRecipesDetails(prev => prev.filter(recipe => !recipeIdsToDelete.includes(recipe.id)));
+            setIngredientsDetails(prev => prev.filter(ing => !recipeIdsToDelete.includes(ing.recipe_id)));
+            setPreprocessingDetails(prev => prev.filter(prep => !recipeIdsToDelete.includes(prep.recipe_id)));
+            setStepsDetails(prev => prev.filter(step => !recipeIdsToDelete.includes(step.recipe_id)));
+        } catch (error) {
+            console.error('Error in selective recipe delete:', error);
+            throw error;
+        }
+    }
+
     const handleIngredientsUpdate = async (updates: Ingredient[]) => {
         try {
             await updateMultipleIngredients(userDetails.id, updates.map(ingredient => ({
@@ -245,6 +273,7 @@ export default function DashboardClient({
                     stepsDetails={stepsDetails}
                     onAppend={handleRecipesAppend}
                     onUpdateAll={handleRecipesUpdateAll}
+                    onSelectiveDelete={handleRecipesSelectiveDelete}
                     isShoppingListOpen={isShoppingListOpen}
                     setIsShoppingListOpen={setIsShoppingListOpen}
                     onUpdateShoppingList={handleIngredientsUpdate}
