@@ -1,6 +1,6 @@
 'use server'
 
-import { Recipe } from "@/types/types";
+import { Recipe, Ingredient, Preprocessing } from "@/types/types";
 import { createClient } from "@/utils/supabase/server";
 import { UUID } from "crypto";
 import { redirect } from "next/navigation";
@@ -63,7 +63,7 @@ export async function getSearchSet(user_id: UUID) {
 
 export async function getRecipes(user_id: UUID) {
     const supabase = await createClient()
-    const { data, error } = await supabase.from('Recipes').select('*').eq('user_id', user_id)
+    const { data, error } = await supabase.from('Recipes').select('*').eq('user_id', user_id).order('cook_date', { ascending: true })
 
     if (error) {
         redirect('/error')
@@ -217,36 +217,153 @@ export async function updateIngredientsById(ingredientDetails: {
     }
 }
 
-export async function updateMultipleIngredients(ingredients: Array<{
-    purchased: boolean,
+export async function updateMultipleIngredients(user_id: UUID, ingredients: Ingredient[]) {
+    const supabase = await createClient();
+    try {
+        // Note: This is not a true transaction. If you need true atomicity, use a Postgres function or RPC.
+        console.log('[INGREDIENTS] Deleting all ingredients for user:', user_id);
+        const { error: deleteError } = await supabase
+            .from('Ingredients')
+            .delete()
+            .eq('user_id', user_id);
+
+        if (deleteError) {
+            console.log('[INGREDIENTS] Error deleting ingredients:', deleteError);
+            throw new Error(`Failed to delete ingredients: ${deleteError.message}`);
+        }
+
+        console.log('[INGREDIENTS] Inserting new ingredients batch for user:', user_id);
+        
+        // Ensure created_at is set for all ingredients
+        const ingredientsWithTimestamps = ingredients.map(ingredient => ({
+            ...ingredient,
+            created_at: ingredient.created_at || new Date().toISOString(),
+            updated_at: ingredient.updated_at || new Date().toISOString()
+        }));
+        
+        const { error: insertError } = await supabase
+            .from('Ingredients')
+            .insert(ingredientsWithTimestamps);
+
+        if (insertError) {
+            console.log('[INGREDIENTS] Error inserting ingredients:', insertError);
+            throw new Error(`Failed to insert ingredients: ${insertError.message}`);
+        }
+
+        console.log('[INGREDIENTS] updateMultipleIngredients completed successfully');
+    } catch (error) {
+        console.log('[INGREDIENTS] Error in updateMultipleIngredients:', error);
+        throw error;
+    }
+}
+
+// Batch update for Steps (not a true transaction, see note above)
+export async function updateMultipleSteps(user_id: UUID, steps: Array<{
+    id: UUID,
     user_id: UUID,
-    id: UUID, 
+    recipe_id: UUID,
+    step_number: number,
+    instruction: string,
+    duration: number,
+    indicator: string,
     updated_at: string
 }>) {
-    const supabase = await createClient()
-    const updatePromises = ingredients.map(async (ingredient) => {
+    const supabase = await createClient();
+    try {
+        console.log('[STEPS] Deleting all steps for user:', user_id);
+        const { error: deleteError } = await supabase
+            .from('Steps')
+            .delete()
+            .eq('user_id', user_id);
+
+        if (deleteError) {
+            console.log('[STEPS] Error deleting steps:', deleteError);
+            throw new Error(`Failed to delete steps: ${deleteError.message}`);
+        }
+
+        console.log('[STEPS] Inserting new steps batch for user:', user_id);
+        const { error: insertError } = await supabase
+            .from('Steps')
+            .insert(steps);
+
+        if (insertError) {
+            console.log('[STEPS] Error inserting steps:', insertError);
+            throw new Error(`Failed to insert steps: ${insertError.message}`);
+        }
+
+        console.log('[STEPS] updateMultipleSteps completed successfully');
+    } catch (error) {
+        console.log('[STEPS] Error in updateMultipleSteps:', error);
+        throw error;
+    }
+}
+
+// Optimized update for specific preprocessing items (avoids delete/insert all)
+export async function updateSpecificPreprocessing(user_id: UUID, operation: string, ingredient: string, specific: string, completed: boolean) {
+    const supabase = await createClient();
+    try {
+        console.log('[PREPROCESSING] Updating specific preprocessing items:', { operation, ingredient, specific, completed });
+        
         const { error } = await supabase
-            .from('Ingredients')
-            .update({
-                purchased: ingredient.purchased,
-                updated_at: ingredient.updated_at
+            .from('Preprocessing')
+            .update({ 
+                completed,
+                updated_at: new Date().toISOString()
             })
-            .eq('id', ingredient.id)
-            .eq('user_id', ingredient.user_id);
+            .eq('user_id', user_id)
+            .eq('operation', operation)
+            .eq('ingredient_name', ingredient)
+            .eq('specific', specific);
 
         if (error) {
-            console.log('Error updating ingredient:', error);
+            console.log('[PREPROCESSING] Error updating specific preprocessing:', error);
+            throw new Error(`Failed to update preprocessing: ${error.message}`);
         }
-        return { success: !error, error };
-    });
 
-    const results = await Promise.all(updatePromises);
-    const errors = results.filter(result => !result.success);
-    
-    if (errors.length > 0) {
-        console.log(`Completed with ${errors.length} errors out of ${ingredients.length} ingredients`);
-    } else {
-        console.log('updateMultipleIngredients completed successfully');
+        console.log('[PREPROCESSING] updateSpecificPreprocessing completed successfully');
+    } catch (error) {
+        console.log('[PREPROCESSING] Error in updateSpecificPreprocessing:', error);
+        throw error;
+    }
+}
+
+// Batch update for PreProcessing (not a true transaction, see note above)
+export async function updateMultiplePreprocessing(user_id: UUID, preprocessing: Preprocessing[]) {
+    const supabase = await createClient();
+    try {
+        console.log('[PREPROCESSING] Deleting all preprocessing for user:', user_id);
+        const { error: deleteError } = await supabase
+            .from('Preprocessing')
+            .delete()
+            .eq('user_id', user_id);
+
+        if (deleteError) {
+            console.log('[PREPROCESSING] Error deleting preprocessing:', deleteError);
+            throw new Error(`Failed to delete preprocessing: ${deleteError.message}`);
+        }
+
+        console.log('[PREPROCESSING] Inserting new preprocessing batch for user:', user_id);
+        
+        // Ensure created_at is set for all preprocessing
+        const preprocessingWithTimestamps = preprocessing.map(prep => ({
+            ...prep,
+            created_at: prep.created_at || new Date().toISOString(),
+            updated_at: prep.updated_at || new Date().toISOString()
+        }));
+        
+        const { error: insertError } = await supabase
+            .from('Preprocessing')
+            .insert(preprocessingWithTimestamps);
+
+        if (insertError) {
+            console.log('[PREPROCESSING] Error inserting preprocessing:', insertError);
+            throw new Error(`Failed to insert preprocessing: ${insertError.message}`);
+        }
+
+        console.log('[PREPROCESSING] updateMultiplePreprocessing completed successfully');
+    } catch (error) {
+        console.log('[PREPROCESSING] Error in updateMultiplePreprocessing:', error);
+        throw error;
     }
 }
 
@@ -256,5 +373,139 @@ export async function deleteRecipes(user_id: UUID, recipe_id: UUID) {
 
     if (error) {
         redirect('/error');        
+    }
+}
+
+// Delete ingredients for specific recipe IDs
+export async function deleteIngredientsForRecipes(user_id: UUID, recipe_ids: UUID[]) {
+    const supabase = await createClient();
+    
+    for (const recipe_id of recipe_ids) {
+        const { error } = await supabase
+            .from('Ingredients')
+            .delete()
+            .eq('user_id', user_id)
+            .eq('recipe_id', recipe_id);
+
+        if (error) {
+            console.error(`Error deleting ingredients for recipe ${recipe_id}:`, error);
+            throw new Error(`Failed to delete ingredients: ${error.message}`);
+        }
+    }
+}
+
+// Delete preprocessing for specific recipe IDs
+export async function deletePreprocessingForRecipes(user_id: UUID, recipe_ids: UUID[]) {
+    const supabase = await createClient();
+    
+    for (const recipe_id of recipe_ids) {
+        const { error } = await supabase
+            .from('Preprocessing')
+            .delete()
+            .eq('user_id', user_id)
+            .eq('recipe_id', recipe_id);
+
+        if (error) {
+            console.error(`Error deleting preprocessing for recipe ${recipe_id}:`, error);
+            throw new Error(`Failed to delete preprocessing: ${error.message}`);
+        }
+    }
+}
+
+// Delete steps for specific recipe IDs
+export async function deleteStepsForRecipes(user_id: UUID, recipe_ids: UUID[]) {
+    const supabase = await createClient();
+    
+    for (const recipe_id of recipe_ids) {
+        const { error } = await supabase
+            .from('Steps')
+            .delete()
+            .eq('user_id', user_id)
+            .eq('recipe_id', recipe_id);
+
+        if (error) {
+            console.error(`Error deleting steps for recipe ${recipe_id}:`, error);
+            throw new Error(`Failed to delete steps: ${error.message}`);
+        }
+    }
+}
+
+export async function getWallet(user_id: UUID) {
+    try {
+        console.log('🔵 [WALLET] Fetching wallet for user:', user_id)
+        
+        const supabase = await createClient()
+        
+        // Check if user is authenticated
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError) {
+            console.error('❌ [WALLET] Auth error:', authError)
+            throw new Error(`Authentication error: ${authError.message}`)
+        }
+        
+        if (!user) {
+            console.error('❌ [WALLET] User not authenticated')
+            throw new Error('User not authenticated')
+        }
+        
+        console.log('🔵 [WALLET] User authenticated:', user.id)
+        
+        const { data, error } = await supabase.from('Wallets').select('*').eq('user_id', user_id).single()
+
+        if (error) {
+            console.error('❌ [WALLET] Error fetching wallet:', error)
+            throw new Error(`Failed to fetch wallet: ${error.message}`)
+        }
+
+        if (!data) {
+            console.error('❌ [WALLET] No wallet found for user:', user_id)
+            throw new Error('Wallet not found')
+        }
+
+        console.log('✅ [WALLET] Wallet fetched successfully:', data)
+        return data
+    } catch (error) {
+        console.error('❌ [WALLET] Error in getWallet:', error)
+        redirect('/error')
+    }
+}
+
+export async function updateWallet(walletDetails: {
+    amount_paid: number;
+    amount_used: number;
+    requests_made: number;
+    updated_at: string;
+    user_id: UUID;
+}) {
+    try {
+        console.log('🔵 [WALLET] Updating wallet for user:', walletDetails.user_id, walletDetails)
+        
+        const supabase = await createClient()
+        
+        // Check if user is authenticated
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError) {
+            console.error('❌ [WALLET] Auth error:', authError)
+            throw new Error(`Authentication error: ${authError.message}`)
+        }
+        
+        if (!user) {
+            console.error('❌ [WALLET] User not authenticated')
+            throw new Error('User not authenticated')
+        }
+        
+        console.log('🔵 [WALLET] User authenticated:', user.id)
+        
+        const { error } = await supabase.from('Wallets').update(walletDetails).eq('user_id', walletDetails.user_id)
+
+        if (error) {
+            console.error('❌ [WALLET] Error updating wallet:', error)
+            throw new Error(`Failed to update wallet: ${error.message}`)
+        }
+
+        console.log('✅ [WALLET] Wallet updated successfully')
+    } catch (error) {
+        console.error('❌ [WALLET] Error in updateWallet:', error)
+        throw error
     }
 }

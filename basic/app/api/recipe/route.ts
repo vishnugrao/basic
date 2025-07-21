@@ -9,6 +9,129 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
+// Define the JSON schema for Structured Outputs
+const recipeSchema = {
+    type: "json_schema" as const,
+    json_schema: {
+        name: "recipe_schema",
+        schema: {
+            type: "object",
+            properties: {
+                recipe: {
+                    type: "object",
+                    properties: {
+                        name: {
+                            type: "string",
+                            description: "The name of the recipe"
+                        },
+                        cuisine: {
+                            type: "string",
+                            description: "The cuisine type of the recipe"
+                        },
+                        nutritional_info: {
+                            type: "object",
+                            properties: {
+                                protein: {
+                                    type: "number",
+                                    description: "Protein content in grams"
+                                },
+                                fat: {
+                                    type: "number",
+                                    description: "Fat content in grams"
+                                },
+                                calories: {
+                                    type: "number",
+                                    description: "Total calories"
+                                }
+                            },
+                            required: ["protein", "fat", "calories"],
+                            additionalProperties: false
+                        },
+                        ingredients: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    name: {
+                                        type: "string",
+                                        description: "Name of the ingredient"
+                                    },
+                                    amount: {
+                                        type: "number",
+                                        description: "Amount of the ingredient"
+                                    },
+                                    metric: {
+                                        type: "string",
+                                        description: "Unit of measurement (g or ml)"
+                                    }
+                                },
+                                required: ["name", "amount", "metric"],
+                                additionalProperties: false
+                            }
+                        },
+                        preprocessing: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    operation: {
+                                        type: "string",
+                                        description: "The preprocessing operation"
+                                    },
+                                    specific: {
+                                        type: "string",
+                                        description: "Specific keyword for the operation"
+                                    },
+                                    instruction: {
+                                        type: "string",
+                                        description: "Detailed instruction for the preprocessing step"
+                                    },
+                                    ingredient_name: {
+                                        type: "string",
+                                        description: "Name of the ingredient this preprocessing applies to"
+                                    }
+                                },
+                                required: ["operation", "specific", "instruction", "ingredient_name"],
+                                additionalProperties: false
+                            }
+                        },
+                        steps: {
+                            type: "array",
+                            items: {
+                                type: "object",
+                                properties: {
+                                    step_number: {
+                                        type: "integer",
+                                        description: "The step number in the recipe"
+                                    },
+                                    instruction: {
+                                        type: "string",
+                                        description: "The cooking instruction for this step"
+                                    },
+                                    duration: {
+                                        type: "number",
+                                        description: "Duration in minutes for this step"
+                                    },
+                                    indicator: {
+                                        type: "string",
+                                        description: "Visual or other indicator for when this step is complete"
+                                    }
+                                },
+                                required: ["step_number", "instruction", "duration", "indicator"],
+                                additionalProperties: false
+                            }
+                        }
+                    },
+                    required: ["name", "cuisine", "nutritional_info", "ingredients", "preprocessing", "steps"],
+                    additionalProperties: false
+                }
+            },
+            required: ["recipe"],
+            additionalProperties: false
+        }
+    }
+};
+
 export async function POST(req: Request) {
     try {
         const supabase = await createClient();
@@ -27,18 +150,18 @@ export async function POST(req: Request) {
         console.log(prompt.slice(0, 200));
         
         const completion = await openai.chat.completions.create({
-            model: "gpt-4o-2024-08-06",
+            model: "gpt-4.1",
             messages: [
                 {
                     role: "system",
-                    content: "You are a culinary expert and nutritionist. Do not use any fancy words, keep the titles clear and concise. Generate recipes following the provided guidelines and format the output as structured JSON."
+                    content: "You are a culinary expert and nutritionist. Do not use any fancy words, keep the titles clear and concise. Generate recipes following the provided guidelines."
                 },
                 {
                     role: "user",
                     content: prompt
                 }
             ],
-            response_format: { type: "json_object" }
+            response_format: recipeSchema
         });
 
         const generatedRecipe = JSON.parse(completion.choices[0].message.content!);
@@ -55,14 +178,21 @@ export async function POST(req: Request) {
             purchased: false,
         }));
 
-        const preprocessingData = generatedRecipe.recipe.preprocessing.map((prep: { operation: string; specific: string; instruction: string }) => ({
-            id: uuidv4() as UUID,
-            user_id: userDetails.id,
-            recipe_id: recipeId,
-            operation: prep.operation,
-            specific: prep.specific,
-            instruction: prep.instruction
-        }));
+        const preprocessingData = generatedRecipe.recipe.preprocessing.map((prep: { operation: string; specific: string; instruction: string; ingredient_name: string }) => {
+            // Find the corresponding ingredient to get its ID
+            const ingredient = ingredientsData.find((ing: { name: string; amount: number; metric: string; id: UUID; user_id: UUID; recipe_id: UUID; purchased: boolean }) => ing.name.toLowerCase() === prep.ingredient_name.toLowerCase());
+            return {
+                id: uuidv4() as UUID,
+                user_id: userDetails.id,
+                recipe_id: recipeId,
+                ingredient_id: ingredient?.id || null,
+                ingredient_name: prep.ingredient_name,
+                operation: prep.operation,
+                specific: prep.specific,
+                instruction: prep.instruction,
+                completed: false
+            };
+        });
 
         const stepsData = generatedRecipe.recipe.steps.map((step: { step_number: number; instruction: string; duration: number; indicator: string }) => ({
             id: uuidv4() as UUID,
@@ -144,14 +274,14 @@ Selected Lacto-Ovo: ${goalDetails.lacto_ovo}
 For preprocessing, the operation should be an action that the preprocessing can be grouped by, and the specific should provide a more specific keyword for the action.
 Keep the operations and specific as consistent as possible because they will be used for grouping as keywords.
 Preprocessing should include all the actions that can take place before starting to cook the meal, that will make the cooking process itself, faster. Preprocessing should also include steps such as marinating and the required duration.
+Each preprocessing item must be associated with a specific ingredient from the ingredients list using the ingredient_name field. The ingredient_name should exactly match one of the ingredient names in the ingredients list. This ensures proper grouping and organization of preprocessing tasks.
 
 Only pick preprocessing operation and specific pairs from the following exhaustive list:
 
-Washing and Cleaning
-operation: wash, specific: rinse
-operation: wash, specific: scrub
-operation: wash, specific: soak
 operation: wash, specific: brush
+operation: wash, specific: scrub
+operation: wash, specific: rinse
+
 operation: cut, specific: julienne
 operation: cut, specific: brunoise
 operation: cut, specific: dice
@@ -164,11 +294,13 @@ operation: cut, specific: cube
 
 operation: peel, specific: remove
 operation: peel, specific: score
+
 operation: trim, specific: fat
 operation: trim, specific: gristle
 operation: trim, specific: de-stem
 operation: trim, specific: de-seed
 operation: trim, specific: core
+operation: trim, specific: stem
 
 operation: marinade, specific: submerge-short
 operation: marinade, specific: submerge-long
@@ -206,14 +338,9 @@ operation: deshell, specific: remove
 operation: fillet, specific: debone
 operation: fillet, specific: skin
 
-operation: clean, specific: brush-off
-operation: trim, specific: stem
+operation: sift, specific: powder
 
-operation: sift, specific: flour
 operation: cream, specific: butter
-
-operation: rinse, specific: grains
-operation: soak, specific: overnight
 
 If possible, generate recipes other than: ${existingRecipes.map((value) => value.recipe_name + ", ")}.
 
@@ -221,39 +348,8 @@ While indicating duration in the steps, ensure that the estimate is accurate, or
 When cooking meat, ensure the meat is not undercooked to prevent sickness.
 
 When indicating the amounts of Ingredients, only use either grams (g) or milliliters (ml) as metrics.
+When naming the ingredients, only use nouns in singular form.
+Only use the provided preprocessing operations and specific.
 
-Please provide the recipe in the following JSON structure:
-{
-    "recipe": {
-        "name": string,
-        "cuisine": string,
-        "nutritional_info": {
-            "protein": number,
-            "fat": number,
-            "calories": number
-        },
-        "ingredients": [
-            {
-                "name": string,
-                "amount": number,
-                "metric": string
-            }
-        ],
-        "preprocessing": [
-            {
-                "operation": string,
-                "specific": string,
-                "instruction": string
-            }
-        ],
-        "steps": [
-            {
-                "step_number": number,
-                "instruction": string,
-                "duration": number,
-                "indicator": string
-            }
-        ]
-    }
-}`;
+Please provide the recipe following the specified structure.`;
 }

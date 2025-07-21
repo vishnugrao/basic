@@ -39,6 +39,16 @@ export interface SwapyItem {
     cuisine: string
 }
 
+export interface UserWallet {
+    id: UUID;
+    user_id: UUID;
+    amount_paid: number;
+    amount_used: number;
+    requests_made: number;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Recipe {
     id: UUID;
     user_id: UUID;
@@ -74,10 +84,17 @@ export interface Preprocessing {
     id: UUID;
     user_id: UUID;
     recipe_id: UUID;
+    ingredient_id: UUID;
+    ingredient_name?: string;
     operation: string;
     specific: string;
     instruction: string;
     completed?: boolean;
+    completedCount?: number;
+    totalCount?: number;
+    allInstructions?: string[];
+    ids?: UUID[];
+    recipe_ids?: UUID[];
     created_at: string;
     updated_at: string;
 }
