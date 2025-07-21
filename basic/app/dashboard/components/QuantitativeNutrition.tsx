@@ -494,8 +494,11 @@ export default function QuantitativeNutrition(props: {
             return;
         }
 
-        setIsLoading(true);
+        // Clear selection immediately to prevent index shifting issues
         const selectedIndices = Array.from(selectedRecipes);
+        setSelectedRecipes(new Set());
+
+        setIsLoading(true);
         const loadingStates = [...loadingRecipes];
         selectedIndices.forEach(index => {
             loadingStates[index] = true;
@@ -624,8 +627,7 @@ export default function QuantitativeNutrition(props: {
             
             console.log('Successfully rerolled selected recipes!');
             
-            // Clear selection after successful reroll
-            setSelectedRecipes(new Set());
+            // Reset UI state after successful reroll
             setCustomCuisine("...");
             setSelectedRerollCuisines(mealPlan.cuisines);
         } catch (error) {
@@ -766,7 +768,7 @@ export default function QuantitativeNutrition(props: {
                         {/* Show actual recipes */}
                         {recipesDetails.map((recipe, index) => (
                             <RecipeDisplay 
-                                key={index} 
+                                key={recipe.id} 
                                 recipe={recipe} 
                                 ingredients={ingredientsDetails} 
                                 preprocessing={preprocessingDetails} 
