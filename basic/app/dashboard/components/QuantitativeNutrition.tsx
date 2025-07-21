@@ -382,8 +382,7 @@ export default function QuantitativeNutrition(props: {
     };
 
     const rollRecipes = async (targetCalories: number, targetProtein: number, targetFat: number) => {
-        // Check balance before proceeding (4 recipes = 12 cents)
-        const requiredCost = 0.12;
+        const requiredCost = 0.12; // A full meal plan costs 12 cents
         if (!checkBalance(requiredCost)) {
             showInsufficientBalancePopup(requiredCost);
             return;

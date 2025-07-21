@@ -217,36 +217,123 @@ export async function updateIngredientsById(ingredientDetails: {
     }
 }
 
-export async function updateMultipleIngredients(ingredients: Array<{
+export async function updateMultipleIngredients(user_id: UUID, ingredients: Array<{
     purchased: boolean,
     user_id: UUID,
     id: UUID, 
     updated_at: string
 }>) {
-    const supabase = await createClient()
-    const updatePromises = ingredients.map(async (ingredient) => {
-        const { error } = await supabase
+    const supabase = await createClient();
+    try {
+        // Note: This is not a true transaction. If you need true atomicity, use a Postgres function or RPC.
+        console.log('[INGREDIENTS] Deleting all ingredients for user:', user_id);
+        const { error: deleteError } = await supabase
             .from('Ingredients')
-            .update({
-                purchased: ingredient.purchased,
-                updated_at: ingredient.updated_at
-            })
-            .eq('id', ingredient.id)
-            .eq('user_id', ingredient.user_id);
+            .delete()
+            .eq('user_id', user_id);
 
-        if (error) {
-            console.log('Error updating ingredient:', error);
+        if (deleteError) {
+            console.log('[INGREDIENTS] Error deleting ingredients:', deleteError);
+            throw new Error(`Failed to delete ingredients: ${deleteError.message}`);
         }
-        return { success: !error, error };
-    });
 
-    const results = await Promise.all(updatePromises);
-    const errors = results.filter(result => !result.success);
-    
-    if (errors.length > 0) {
-        console.log(`Completed with ${errors.length} errors out of ${ingredients.length} ingredients`);
-    } else {
-        console.log('updateMultipleIngredients completed successfully');
+        console.log('[INGREDIENTS] Inserting new ingredients batch for user:', user_id);
+        const { error: insertError } = await supabase
+            .from('Ingredients')
+            .insert(ingredients);
+
+        if (insertError) {
+            console.log('[INGREDIENTS] Error inserting ingredients:', insertError);
+            throw new Error(`Failed to insert ingredients: ${insertError.message}`);
+        }
+
+        console.log('[INGREDIENTS] updateMultipleIngredients completed successfully');
+    } catch (error) {
+        console.log('[INGREDIENTS] Error in updateMultipleIngredients:', error);
+        throw error;
+    }
+}
+
+// Batch update for Steps (not a true transaction, see note above)
+export async function updateMultipleSteps(user_id: UUID, steps: Array<{
+    id: UUID,
+    user_id: UUID,
+    recipe_id: UUID,
+    step_number: number,
+    instruction: string,
+    duration: number,
+    indicator: string,
+    updated_at: string
+}>) {
+    const supabase = await createClient();
+    try {
+        console.log('[STEPS] Deleting all steps for user:', user_id);
+        const { error: deleteError } = await supabase
+            .from('Steps')
+            .delete()
+            .eq('user_id', user_id);
+
+        if (deleteError) {
+            console.log('[STEPS] Error deleting steps:', deleteError);
+            throw new Error(`Failed to delete steps: ${deleteError.message}`);
+        }
+
+        console.log('[STEPS] Inserting new steps batch for user:', user_id);
+        const { error: insertError } = await supabase
+            .from('Steps')
+            .insert(steps);
+
+        if (insertError) {
+            console.log('[STEPS] Error inserting steps:', insertError);
+            throw new Error(`Failed to insert steps: ${insertError.message}`);
+        }
+
+        console.log('[STEPS] updateMultipleSteps completed successfully');
+    } catch (error) {
+        console.log('[STEPS] Error in updateMultipleSteps:', error);
+        throw error;
+    }
+}
+
+// Batch update for PreProcessing (not a true transaction, see note above)
+export async function updateMultiplePreprocessing(user_id: UUID, preprocessing: Array<{
+    id: UUID,
+    user_id: UUID,
+    recipe_id: UUID,
+    ingredient_id: UUID | null,
+    ingredient_name: string,
+    operation: string,
+    specific: string,
+    instruction: string,
+    updated_at: string
+}>) {
+    const supabase = await createClient();
+    try {
+        console.log('[PREPROCESSING] Deleting all preprocessing for user:', user_id);
+        const { error: deleteError } = await supabase
+            .from('Preprocessing')
+            .delete()
+            .eq('user_id', user_id);
+
+        if (deleteError) {
+            console.log('[PREPROCESSING] Error deleting preprocessing:', deleteError);
+            throw new Error(`Failed to delete preprocessing: ${deleteError.message}`);
+        }
+
+        console.log('[PREPROCESSING] Inserting new preprocessing batch for user:', user_id);
+        const { error: insertError } = await supabase
+            .from('Preprocessing')
+            .insert(preprocessing);
+
+        if (insertError) {
+            console.log('[PREPROCESSING] Error inserting preprocessing:', insertError);
+            throw new Error(`Failed to insert preprocessing: ${insertError.message}`);
+        }
+
+        console.log('[PREPROCESSING] updateMultiplePreprocessing completed successfully');
+    } catch (error) {
+        console.log('[PREPROCESSING] Error in updateMultiplePreprocessing:', error);
+        throw error;
     }
 }
 
