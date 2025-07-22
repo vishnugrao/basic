@@ -36,7 +36,7 @@ class Mutex {
 
 // Create skeleton recipe for loading state
 const createSkeletonRecipe = (index: number, cookDate: Date, userId: string): Recipe => ({
-    id: `00000000-0000-0000-0000-skeleton${index.toString().padStart(6, '0')}` as `${string}-${string}-${string}-${string}-${string}`,
+    id: `00000000-0000-0000-0000-skeleton${index.toString().padStart(6, '0')}-${Date.now()}` as `${string}-${string}-${string}-${string}-${string}`,
     user_id: userId as `${string}-${string}-${string}-${string}-${string}`,
     recipe_name: `Generating recipe ${index + 1}...`,
     cook_date: cookDate,
@@ -186,6 +186,63 @@ export default function QuantitativeNutrition(props: {
             }
         } catch (error) {
             console.error('❌ [COMMIT] Error committing collected data to database:', error);
+            throw error;
+        }
+    };
+
+    // Smart commit that inserts entire local state with orphan cleanup
+    const commitCollectedDataToDatabaseSmart = async (
+        recipes: Recipe[], 
+        ingredients: Ingredient[], 
+        preprocessing: Preprocessing[], 
+        steps: Step[]
+    ) => {
+        try {
+            // Filter out skeleton recipes before committing
+            const validRecipes = recipes.filter(recipe => 
+                !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
+            );
+
+            console.log('📊 [SMART COMMIT] Starting smart commit with fresh local state');
+            console.log('📊 [SMART COMMIT] Final recipe IDs:', validRecipes.map(r => r.id));
+
+            // Filter ingredients, preprocessing, and steps to only include those for valid recipes
+            const validRecipeIds = validRecipes.map(recipe => recipe.id);
+            const validIngredients = ingredients.filter(ingredient => 
+                validRecipeIds.includes(ingredient.recipe_id)
+            );
+            const validPreprocessing = preprocessing.filter(prep => 
+                validRecipeIds.includes(prep.recipe_id)
+            );
+            const validSteps = steps.filter(step => 
+                validRecipeIds.includes(step.recipe_id)
+            );
+
+            console.log('📊 [SMART COMMIT] Committing complete final state:', {
+                recipesCount: validRecipes.length,
+                ingredientsCount: validIngredients.length,
+                preprocessingCount: validPreprocessing.length,
+                stepsCount: validSteps.length,
+                finalRecipeIds: validRecipeIds
+            });
+
+            // Insert/update all data to DB (this will handle existing vs new recipe logic in the backend)
+            // The backend should handle: if recipe_id exists, update; if not, insert
+            // Then delete orphans not in the final validRecipeIds list
+            await props.onUpdateAll(validRecipes);
+            await onUpdateShoppingList(validIngredients);
+            await onUpdatePreprocessing(validPreprocessing);
+            await onUpdateSteps(validSteps);
+
+            // Update local state with the committed data
+            setLocalRecipes(validRecipes);
+            setLocalIngredients(validIngredients);
+            setLocalPreprocessing(validPreprocessing);
+            setLocalSteps(validSteps);
+
+            console.log('✅ [SMART COMMIT] Smart commit completed with final recipe IDs:', validRecipeIds);
+        } catch (error) {
+            console.error('❌ [SMART COMMIT] Error in smart commit:', error);
             throw error;
         }
     };
@@ -522,120 +579,7 @@ export default function QuantitativeNutrition(props: {
         }
     };
 
-    // Generate single recipe for optimized rerollSelected  
-    const generateSingleRecipeForReroll = async (
-        slotIndex: number,
-        targetCalories: number, 
-        targetProtein: number, 
-        targetFat: number, 
-        cookDate: Date,
-        existingRecipeNames: Recipe[],
-        cuisinesToUse?: string[]
-    ): Promise<{ recipe: Recipe, ingredients: Ingredient[], preprocessing: Preprocessing[], steps: Step[] }> => {
-        try {
-            const response = await fetch('/api/recipe', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    userDetails,
-                    goalDetails,
-                    cuisines: cuisinesToUse || getCuisinesForGeneration(),
-                    existingRecipes: existingRecipeNames,
-                    calorieTarget: targetCalories,
-                    proteinTarget: targetProtein,
-                    fatTarget: targetFat,
-                    cookDate: cookDate,
-                }),
-            });
 
-            if (!response.ok) {
-                throw new Error('Failed to generate recipe');
-            }
-
-            const data = await response.json();
-            const recipe = data.recipe;
-            const ingredients = data.ingredients || [];
-            const preprocessing = data.preprocessing || [];
-            const steps = data.steps || [];
-
-            console.log(`🌟 [REROLL SLOT ${slotIndex}] API Response received:`, {
-                recipeId: recipe?.id,
-                recipeName: recipe?.recipe_name,
-                ingredientsCount: ingredients.length,
-                preprocessingCount: preprocessing.length,
-                stepsCount: steps.length
-            });
-
-            if (!recipe || typeof recipe !== 'object') {
-                throw new Error('Invalid recipe data received');
-            }
-
-            // Ensure proper recipe IDs on related data
-            const ingredientsWithRecipeId = ingredients.map((ing: Ingredient) => ({ ...ing, recipe_id: recipe.id }));
-            const preprocessingWithRecipeId = preprocessing.map((prep: Preprocessing) => ({ ...prep, recipe_id: recipe.id }));
-            const stepsWithRecipeId = steps.map((step: Step) => ({ ...step, recipe_id: recipe.id }));
-
-            // Lock state and replace slot
-            console.log(`🔒 [REROLL SLOT ${slotIndex}] Attempting to acquire mutex...`);
-            await stateMutex.lock();
-            console.log(`✅ [REROLL SLOT ${slotIndex}] Mutex acquired, updating state...`);
-            try {
-                console.log(`🔄 [REROLL SLOT ${slotIndex}] Adding to local state:`, {
-                    recipeId: recipe.id,
-                    ingredientsCount: ingredientsWithRecipeId.length,
-                    preprocessingCount: preprocessingWithRecipeId.length,
-                    stepsCount: stepsWithRecipeId.length
-                });
-
-                setLocalRecipes(prev => {
-                    const newRecipes = [...prev];
-                    newRecipes[slotIndex] = recipe;
-                    console.log(`🔄 [REROLL SLOT ${slotIndex}] setLocalRecipes called`);
-                    return newRecipes;
-                });
-                setLocalIngredients(prev => {
-                    const newIngredients = [...prev, ...ingredientsWithRecipeId];
-                    console.log(`🔄 [REROLL SLOT ${slotIndex}] Local ingredients count after update:`, newIngredients.length);
-                    return newIngredients;
-                });
-                setLocalPreprocessing(prev => {
-                    const newPreprocessing = [...prev, ...preprocessingWithRecipeId];
-                    console.log(`🔄 [REROLL SLOT ${slotIndex}] Local preprocessing count after update:`, newPreprocessing.length);
-                    return newPreprocessing;
-                });
-                setLocalSteps(prev => {
-                    const newSteps = [...prev, ...stepsWithRecipeId];
-                    console.log(`🔄 [REROLL SLOT ${slotIndex}] Local steps count after update:`, newSteps.length);
-                    return newSteps;
-                });
-                
-                // Update loading state for this specific recipe
-                setLoadingRecipes(prev => {
-                    const newState = [...prev];
-                    newState[slotIndex] = false;
-                    return newState;
-                });
-                console.log(`✅ [REROLL SLOT ${slotIndex}] All state updates called successfully`);
-            } finally {
-                console.log(`🔓 [REROLL SLOT ${slotIndex}] Releasing mutex...`);
-                stateMutex.unlock();
-                console.log(`✅ [REROLL SLOT ${slotIndex}] Mutex released`);
-            }
-
-            return { recipe, ingredients: ingredientsWithRecipeId, preprocessing: preprocessingWithRecipeId, steps: stepsWithRecipeId };
-        } catch (error) {
-            // Update loading state for this specific recipe even on error
-            setLoadingRecipes(prev => {
-                const newState = [...prev];
-                newState[slotIndex] = false;
-                return newState;
-            });
-            console.error(`Error generating recipe for slot ${slotIndex}:`, error);
-            throw error;
-        }
-    };
 
 
 
@@ -759,9 +703,9 @@ export default function QuantitativeNutrition(props: {
             return;
         }
 
-        // Clear selection immediately to prevent index shifting issues
+        // Get selected indices and clear selection
         const selectedIndices = Array.from(selectedRecipes);
-        setSelectedRecipes(new Set());
+        setSelectedRecipes(new Set()); // Clear selection immediately
 
         setIsLoading(true);
         const loadingStates = [...loadingRecipes];
@@ -771,11 +715,17 @@ export default function QuantitativeNutrition(props: {
         setLoadingRecipes(loadingStates);
 
         try {
-            // Immediately delete the selected recipes only and all the related information from the local state
-            const selectedRecipeIds = selectedIndices.map(index => localRecipes[index]?.id).filter(Boolean) as string[];
+            // Get IDs from the ORIGINAL recipesDetails (not local state) to ensure accuracy
+            const selectedRecipeIds = selectedIndices.map(index => recipesDetails[index]?.id).filter(Boolean) as string[];
             const originalCookDates = selectedIndices.map(index => localRecipes[index]?.cook_date).filter((date): date is Date => Boolean(date));
+            const recipesToDelete = selectedIndices.map(index => recipesDetails[index]).filter(Boolean);
             
-            // Update local state to replace selected recipes with skeleton recipes
+            console.log('🔄 [REROLLSELECTED] Selected recipe IDs to remove data for:', selectedRecipeIds);
+            console.log('🔄 [REROLLSELECTED] Current local ingredients count:', localIngredients.length);
+            console.log('🔄 [REROLLSELECTED] Current local steps count:', localSteps.length);
+            console.log('🔄 [REROLLSELECTED] Current local preprocessing count:', localPreprocessing.length);
+            
+            // Immediately replace selected recipes with skeleton recipes (maintain array structure)
             setLocalRecipes(prev => {
                 const newRecipes = [...prev];
                 selectedIndices.forEach((index, i) => {
@@ -785,13 +735,22 @@ export default function QuantitativeNutrition(props: {
                 return newRecipes;
             });
             
-            setLocalIngredients(prev => prev.filter(ing => !selectedRecipeIds.includes(ing.recipe_id)));
-            setLocalPreprocessing(prev => prev.filter(prep => !selectedRecipeIds.includes(prep.recipe_id)));
-            setLocalSteps(prev => prev.filter(step => !selectedRecipeIds.includes(step.recipe_id)));
-
-            // Delete from database
-            const recipesToDelete = selectedIndices.map(index => recipesDetails[index]).filter(Boolean);
-            await onSelectiveDelete(recipesToDelete);
+            // Remove related data ONLY for the selected recipes (using original recipe IDs)
+            setLocalIngredients(prev => {
+                const filtered = prev.filter(ing => !selectedRecipeIds.includes(ing.recipe_id));
+                console.log('🔄 [REROLLSELECTED] Filtered ingredients count:', filtered.length, 'removed:', prev.length - filtered.length);
+                return filtered;
+            });
+            setLocalPreprocessing(prev => {
+                const filtered = prev.filter(prep => !selectedRecipeIds.includes(prep.recipe_id));
+                console.log('🔄 [REROLLSELECTED] Filtered preprocessing count:', filtered.length, 'removed:', prev.length - filtered.length);
+                return filtered;
+            });
+            setLocalSteps(prev => {
+                const filtered = prev.filter(step => !selectedRecipeIds.includes(step.recipe_id));
+                console.log('🔄 [REROLLSELECTED] Filtered steps count:', filtered.length, 'removed:', prev.length - filtered.length);
+                return filtered;
+            });
 
             // Calculate nutritional targets for selected recipes
             const mealTypes: [number, number, number][] = [
@@ -807,20 +766,144 @@ export default function QuantitativeNutrition(props: {
 
             // Use selected reroll cuisines for reroll
             const cuisinesToUse = selectedRerollCuisines.length > 0 ? selectedRerollCuisines : mealPlan.cuisines.slice(0, 4);
+            console.log('🍜 [REROLLSELECTED] Cuisine selection details:', {
+                selectedRerollCuisines: selectedRerollCuisines,
+                selectedRerollCuisinesLength: selectedRerollCuisines.length,
+                mealPlanCuisines: mealPlan.cuisines,
+                finalCuisinesToUse: cuisinesToUse
+            });
 
-            // Build existing recipe names for context (excluding selected/skeleton ones)
+            // Build existing recipe names for context (excluding selected ones)
             const existingRecipeNames: Recipe[] = localRecipes.filter(recipe => 
                 !selectedIndices.includes(localRecipes.indexOf(recipe)) && 
                 !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
             );
 
-            // Spawn separate threads for each of the recipe to be generated
-            const recipePromises = selectedIndices.map(async (index, i) => {
+            // Generate single recipe for reroll with index management
+            const generateSingleRecipeForRerollWithIndex = async (
+                originalIndex: number,
+                targetCalories: number, 
+                targetProtein: number, 
+                targetFat: number, 
+                cookDate: Date,
+                existingRecipeNames: Recipe[],
+                cuisinesToUse?: string[]
+            ) => {
+                try {
+                    const cuisinesToSend = cuisinesToUse || getCuisinesForGeneration();
+                    console.log(`🍜 [REROLL INDEX ${originalIndex}] Sending cuisines to API:`, cuisinesToSend);
+                    
+                    const response = await fetch('/api/recipe', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            userDetails,
+                            goalDetails,
+                            cuisines: cuisinesToSend,
+                            existingRecipes: existingRecipeNames,
+                            calorieTarget: targetCalories,
+                            proteinTarget: targetProtein,
+                            fatTarget: targetFat,
+                            cookDate: cookDate,
+                        }),
+                    });
+
+                    if (!response.ok) {
+                        throw new Error('Failed to generate recipe');
+                    }
+
+                    const data = await response.json();
+                    const recipe = data.recipe;
+                    const ingredients = data.ingredients || [];
+                    const preprocessing = data.preprocessing || [];
+                    const steps = data.steps || [];
+
+                    console.log(`🌟 [REROLL INDEX ${originalIndex}] API Response received:`, {
+                        recipeId: recipe?.id,
+                        recipeName: recipe?.recipe_name,
+                        ingredientsCount: ingredients.length,
+                        preprocessingCount: preprocessing.length,
+                        stepsCount: steps.length
+                    });
+
+                    if (!recipe || typeof recipe !== 'object') {
+                        throw new Error('Invalid recipe data received');
+                    }
+
+                    // Ensure proper recipe IDs on related data
+                    const ingredientsWithRecipeId = ingredients.map((ing: Ingredient) => ({ ...ing, recipe_id: recipe.id }));
+                    const preprocessingWithRecipeId = preprocessing.map((prep: Preprocessing) => ({ ...prep, recipe_id: recipe.id }));
+                    const stepsWithRecipeId = steps.map((step: Step) => ({ ...step, recipe_id: recipe.id }));
+
+                                         // Lock state and replace skeleton recipe at original index
+                     console.log(`🔒 [REROLL INDEX ${originalIndex}] Attempting to acquire mutex...`);
+                     await stateMutex.lock();
+                     console.log(`✅ [REROLL INDEX ${originalIndex}] Mutex acquired, updating state...`);
+                     try {
+                         console.log(`🔄 [REROLL INDEX ${originalIndex}] Replacing skeleton at index ${originalIndex}`);
+                         
+                         // Replace the skeleton recipe at the original index
+                         setLocalRecipes(prevRecipes => {
+                             const newRecipes = [...prevRecipes];
+                             newRecipes[originalIndex] = recipe;
+                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Recipe replaced at index ${originalIndex}`);
+                             return newRecipes;
+                         });
+                         
+                         setLocalIngredients(prev => {
+                             const newIngredients = [...prev, ...ingredientsWithRecipeId];
+                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Added ${ingredientsWithRecipeId.length} ingredients`);
+                             return newIngredients;
+                         });
+                         
+                         setLocalPreprocessing(prev => {
+                             const newPreprocessing = [...prev, ...preprocessingWithRecipeId];
+                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Added ${preprocessingWithRecipeId.length} preprocessing items`);
+                             return newPreprocessing;
+                         });
+                         
+                         setLocalSteps(prev => {
+                             const newSteps = [...prev, ...stepsWithRecipeId];
+                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Added ${stepsWithRecipeId.length} steps`);
+                             return newSteps;
+                         });
+                         
+                         // Update loading state for the original index
+                         setLoadingRecipes(prev => {
+                             const newState = [...prev];
+                             newState[originalIndex] = false;
+                             return newState;
+                         });
+                         
+                         console.log(`✅ [REROLL INDEX ${originalIndex}] State updates completed successfully`);
+                     } finally {
+                         console.log(`🔓 [REROLL INDEX ${originalIndex}] Releasing mutex...`);
+                         stateMutex.unlock();
+                         console.log(`✅ [REROLL INDEX ${originalIndex}] Mutex released`);
+                     }
+
+                    return { recipe, ingredients: ingredientsWithRecipeId, preprocessing: preprocessingWithRecipeId, steps: stepsWithRecipeId };
+                                 } catch (error) {
+                     // Update loading state even on error
+                     setLoadingRecipes(prev => {
+                         const newState = [...prev];
+                         newState[originalIndex] = false;
+                         return newState;
+                     });
+                     console.error(`Error generating recipe for original index ${originalIndex}:`, error);
+                     throw error;
+                 }
+            };
+
+            // Spawn separate threads for each recipe to be generated
+            const recipePromises = selectedIndices.map(async (originalIndex, i) => {
                 const originalCookDate = originalCookDates[i];
-                const mealType = mealTypes[index];
+                const mealType = mealTypes[originalIndex];
                 
-                return generateSingleRecipeForReroll(
-                    index,
+                return generateSingleRecipeForRerollWithIndex(
+                    originalIndex,
                     mealType[0],
                     mealType[1],
                     mealType[2],
@@ -830,10 +913,10 @@ export default function QuantitativeNutrition(props: {
                 );
             });
 
-            // Wait for all recipes to complete and collect the data
+            // Wait for all recipes to complete
             const rerollResults = await Promise.all(recipePromises);
             
-            // Collect all data from the reroll promises
+            // Collect all data from the reroll promises (this is the COMPLETE data)
             const newRecipes = rerollResults.map(result => result.recipe);
             const newIngredients = rerollResults.flatMap(result => result.ingredients);
             const newPreprocessing = rerollResults.flatMap(result => result.preprocessing);
@@ -846,27 +929,109 @@ export default function QuantitativeNutrition(props: {
                 newStepsCount: newSteps.length
             });
 
-            // Get current local state data (excluding the recipes that were rerolled)
-            const remainingRecipes = localRecipes.filter((_, index) => !selectedIndices.includes(index));
-            const remainingIngredients = localIngredients.filter(ing => !selectedRecipeIds.includes(ing.recipe_id));
-            const remainingPreprocessing = localPreprocessing.filter(prep => !selectedRecipeIds.includes(prep.recipe_id));
-            const remainingSteps = localSteps.filter(step => !selectedRecipeIds.includes(step.recipe_id));
-            
-            // Combine remaining + new data
-            const finalRecipes = [...remainingRecipes.filter(r => !r.id.startsWith('00000000-0000-0000-0000-skeleton')), ...newRecipes];
-            const finalIngredients = [...remainingIngredients, ...newIngredients];
-            const finalPreprocessing = [...remainingPreprocessing, ...newPreprocessing];
-            const finalSteps = [...remainingSteps, ...newSteps];
+            // Delete original recipes from database now that new ones are ready
+            await onSelectiveDelete(recipesToDelete);
 
-            console.log('📊 [REROLLSELECTED] Final combined data:', {
-                finalRecipesCount: finalRecipes.length,
-                finalIngredientsCount: finalIngredients.length,
-                finalPreprocessingCount: finalPreprocessing.length,
-                finalStepsCount: finalSteps.length
+            // Wait for all state updates to be applied
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
+            // Build the final state from the actual collected data instead of relying on local state
+            // Combine the remaining unselected recipes with the new recipes from API responses
+            const originalSelectedRecipeIds = new Set(selectedIndices.map(index => recipesDetails[index]?.id).filter(Boolean));
+            
+            // Get unselected recipes from current local state
+            await stateMutex.lock();
+            let unselectedRecipes: Recipe[];
+            let unselectedIngredients: Ingredient[];
+            let unselectedPreprocessing: Preprocessing[];
+            let unselectedSteps: Step[];
+            
+            try {
+                unselectedRecipes = localRecipes.filter(recipe => 
+                    !originalSelectedRecipeIds.has(recipe.id) && 
+                    !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
+                );
+                
+                const unselectedRecipeIds = unselectedRecipes.map(r => r.id);
+                unselectedIngredients = localIngredients.filter(ing => unselectedRecipeIds.includes(ing.recipe_id));
+                unselectedPreprocessing = localPreprocessing.filter(prep => unselectedRecipeIds.includes(prep.recipe_id));
+                unselectedSteps = localSteps.filter(step => unselectedRecipeIds.includes(step.recipe_id));
+            } finally {
+                stateMutex.unlock();
+            }
+
+            // Build final arrays preserving original order by reconstructing the complete arrays
+            const finalRecipes: Recipe[] = [];
+            const finalIngredients: Ingredient[] = [];
+            const finalPreprocessing: Preprocessing[] = [];
+            const finalSteps: Step[] = [];
+
+            // Build recipe array preserving original order
+            for (let i = 0; i < 4; i++) { // Assuming 4 recipe slots
+                if (selectedIndices.includes(i)) {
+                    // This slot was selected for reroll - find the corresponding new recipe
+                    const correspondingNewRecipe = newRecipes[selectedIndices.indexOf(i)];
+                    if (correspondingNewRecipe) {
+                        finalRecipes[i] = correspondingNewRecipe;
+                        
+                        // Add related data for this new recipe
+                        const recipeIngredients = newIngredients.filter(ing => ing.recipe_id === correspondingNewRecipe.id);
+                        const recipePreprocessing = newPreprocessing.filter(prep => prep.recipe_id === correspondingNewRecipe.id);
+                        const recipeSteps = newSteps.filter(step => step.recipe_id === correspondingNewRecipe.id);
+                        
+                        finalIngredients.push(...recipeIngredients);
+                        finalPreprocessing.push(...recipePreprocessing);
+                        finalSteps.push(...recipeSteps);
+                    }
+                } else {
+                    // This slot was not selected - find the corresponding unselected recipe
+                    const originalRecipe = localRecipes[i];
+                    if (originalRecipe && !originalRecipe.id.startsWith('00000000-0000-0000-0000-skeleton')) {
+                        finalRecipes[i] = originalRecipe;
+                        
+                        // Add related data for this unselected recipe
+                        const recipeIngredients = unselectedIngredients.filter(ing => ing.recipe_id === originalRecipe.id);
+                        const recipePreprocessing = unselectedPreprocessing.filter(prep => prep.recipe_id === originalRecipe.id);
+                        const recipeSteps = unselectedSteps.filter(step => step.recipe_id === originalRecipe.id);
+                        
+                        finalIngredients.push(...recipeIngredients);
+                        finalPreprocessing.push(...recipePreprocessing);
+                        finalSteps.push(...recipeSteps);
+                    }
+                }
+            }
+
+            // Filter out any undefined slots and flatten
+            const validFinalRecipes = finalRecipes.filter(Boolean);
+
+            console.log('📊 [REROLLSELECTED] Final state building details:', {
+                selectedIndices: selectedIndices,
+                originalSelectedRecipeIds: Array.from(originalSelectedRecipeIds),
+                unselectedRecipesCount: unselectedRecipes.length,
+                unselectedRecipeIds: unselectedRecipes.map(r => r.id),
+                newRecipesCount: newRecipes.length,
+                newRecipeIds: newRecipes.map(r => r.id),
+                finalRecipesCount: validFinalRecipes.length,
+                finalRecipeIds: validFinalRecipes.map(r => r.id),
+                preservedOrder: finalRecipes.map((r, i) => `${i}: ${r?.id || 'empty'}`)
             });
 
-            // Commit the combined data to the DB atomically (drop all db entries and replace with combined state)
-            await commitCollectedDataToDatabase(finalRecipes, finalIngredients, finalPreprocessing, finalSteps, true);
+            console.log('📊 [REROLLSELECTED] Complete final state for DB commit:', {
+                finalRecipesCount: validFinalRecipes.length,
+                finalIngredientsCount: finalIngredients.length,
+                finalPreprocessingCount: finalPreprocessing.length,
+                finalStepsCount: finalSteps.length,
+                recipeIds: validFinalRecipes.map(r => r.id)
+            });
+
+            // Update local state immediately with the final state to avoid temporary 0 counts
+            setLocalRecipes(validFinalRecipes);
+            setLocalIngredients(finalIngredients);
+            setLocalPreprocessing(finalPreprocessing);
+            setLocalSteps(finalSteps);
+
+            // Commit the complete final state to the DB with smart insert logic
+            await commitCollectedDataToDatabaseSmart(validFinalRecipes, finalIngredients, finalPreprocessing, finalSteps);
 
             // Update wallet after all recipes are completed
             await onWalletUpdate(selectedIndices.length * 0.03, selectedIndices.length);
