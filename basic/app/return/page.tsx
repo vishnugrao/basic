@@ -2,6 +2,9 @@ import { redirect } from 'next/navigation'
 
 import { handlePaymentSuccess } from '@/app/actions/stripe'
 
+// Explicitly mark this route as dynamic to handle searchParams Promise
+export const dynamic = 'force-dynamic'
+
 export default async function Return({ searchParams }: { searchParams: Promise<{ session_id: string }> }) {
     try {
         console.log('🔵 [STRIPE RETURN] Processing payment return')
