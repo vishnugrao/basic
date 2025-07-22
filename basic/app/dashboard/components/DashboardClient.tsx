@@ -6,7 +6,7 @@ import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, updateMultipleRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateMultipleSteps, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, updateMultipleRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateMultipleSteps, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes, getWallet } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -68,6 +68,19 @@ export default function DashboardClient({
         
         setWallet(updatedWallet);
         await updateWallet(updatedWallet);
+    };
+
+    // Function to refresh wallet data from server (for AJAX updates after payments)
+    const handleWalletRefresh = async () => {
+        try {
+            console.log('🔵 [WALLET REFRESH] Fetching fresh wallet data via AJAX')
+            const freshWalletData = await getWallet(userDetails.id);
+            setWallet(freshWalletData);
+            console.log('✅ [WALLET REFRESH] Wallet data refreshed successfully:', freshWalletData)
+        } catch (error) {
+            console.error('❌ [WALLET REFRESH] Error refreshing wallet data:', error)
+            throw error; // Re-throw to allow UserWallet to handle fallback
+        }
     };
 
     const handleUserUpdate = async (updates: Partial<User>) => {
@@ -274,6 +287,7 @@ export default function DashboardClient({
                     isCuisineSearchOpen={isCuisineSearchOpen}
                     setIsCuisineSearchOpen={setIsCuisineSearchOpen}
                     onUpdate={handleMealPlanUpdate}
+                    onWalletRefresh={handleWalletRefresh}
                 />
             </div>
             <div className="p-10 pt-20">

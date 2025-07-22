@@ -13,6 +13,7 @@ interface MealPlannerProps {
     isCuisineSearchOpen: boolean;
     setIsCuisineSearchOpen: Dispatch<SetStateAction<boolean>>;
     onUpdate: (updates: Partial<MealPlan>) => Promise<void>;
+    onWalletRefresh?: () => Promise<void>;
 }
 
 export default function MealPlanner({ 
@@ -21,7 +22,8 @@ export default function MealPlanner({
     wallet,
     isCuisineSearchOpen,
     setIsCuisineSearchOpen,
-    onUpdate
+    onUpdate,
+    onWalletRefresh
 }: MealPlannerProps) {
     const limitPreferences = 4; // set the number of tags displayed on the page
 
@@ -60,7 +62,7 @@ export default function MealPlanner({
             </div>
             <div className="flex-auto"></div>
             <div className="flex w-1/3">
-                <UserWallet wallet={wallet} />
+                <UserWallet wallet={wallet} onWalletRefresh={onWalletRefresh} />
             </div>
             <div className="flex-auto"></div>
         </div>

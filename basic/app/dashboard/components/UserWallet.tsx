@@ -7,9 +7,10 @@ import Checkout from '@/app/components/checkout'
 
 interface UserWalletProps {
     wallet: UserWallet;
+    onWalletRefresh?: () => Promise<void>;
 }
 
-export default function UserWallet({ wallet }: UserWalletProps) {
+export default function UserWallet({ wallet, onWalletRefresh }: UserWalletProps) {
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
     const [clientSecret, setClientSecret] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
@@ -34,12 +35,26 @@ export default function UserWallet({ wallet }: UserWalletProps) {
         }
     }
 
-    const handleCheckoutClose = () => {
+    const handleCheckoutClose = async () => {
         console.log('🔵 [STRIPE CLIENT] Closing checkout modal')
         setIsCheckoutOpen(false)
         setClientSecret(null)
-        // Refresh wallet data after successful payment
-        window.location.reload()
+        
+        // Refresh wallet data after successful payment using AJAX
+        if (onWalletRefresh) {
+            try {
+                console.log('🔵 [STRIPE CLIENT] Refreshing wallet data via AJAX')
+                await onWalletRefresh()
+                console.log('✅ [STRIPE CLIENT] Wallet data refreshed successfully')
+            } catch (error) {
+                console.error('❌ [STRIPE CLIENT] Error refreshing wallet data:', error)
+                // Fallback to page reload if AJAX fails
+                window.location.reload()
+            }
+        } else {
+            // Fallback to page reload if no refresh function provided
+            window.location.reload()
+        }
     }
 
     const balance = wallet.amount_paid - wallet.amount_used
