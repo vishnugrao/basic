@@ -126,6 +126,6 @@ export async function signup(formData: FormData) {
     
     console.log('✅ [SIGNUP] Wallet created successfully')
 
-    revalidatePath('/login', 'layout')
-    redirect('/login?message=check-email')
+    revalidatePath('/dashboard', 'layout')
+    redirect('/dashboard')
 }
