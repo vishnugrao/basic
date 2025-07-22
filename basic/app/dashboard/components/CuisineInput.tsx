@@ -26,7 +26,7 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
 
     const swapyContainerRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => utils.dynamicSwapy(swapyRef.current, cuisines, 'id', slotCuisineMap, setSlotCuisineMap), [cuisines])
+    useEffect(() => utils.dynamicSwapy(swapyRef.current, cuisines, 'id', slotCuisineMap, setSlotCuisineMap), [cuisines, slotCuisineMap])
 
     useEffect(() => {
         if (rearrangeMode) {
