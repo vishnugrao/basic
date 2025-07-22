@@ -765,19 +765,24 @@ export default function QuantitativeNutrition(props: {
             ];
 
             // Use selected reroll cuisines for reroll
-            const cuisinesToUse = selectedRerollCuisines.length > 0 ? selectedRerollCuisines : mealPlan.cuisines.slice(0, 4);
+            let cuisinesToUse = selectedRerollCuisines.length > 0 ? selectedRerollCuisines : mealPlan.cuisines.slice(0, 4);
             console.log('🍜 [REROLLSELECTED] Cuisine selection details:', {
                 selectedRerollCuisines: selectedRerollCuisines,
                 selectedRerollCuisinesLength: selectedRerollCuisines.length,
                 mealPlanCuisines: mealPlan.cuisines,
-                finalCuisinesToUse: cuisinesToUse
+                finalCuisinesToUse: cuisinesToUse,
+                willUseFallback: selectedRerollCuisines.length === 0
             });
+            
+            // Ensure cuisines are properly set - this should never be empty
+            if (cuisinesToUse.length === 0) {
+                console.warn('🍜 [REROLLSELECTED] WARNING: No cuisines available, using default');
+                cuisinesToUse = ['Italian']; // Fallback to prevent empty cuisine array
+            }
 
-            // Build existing recipe names for context (excluding selected ones)
-            const existingRecipeNames: Recipe[] = localRecipes.filter(recipe => 
-                !selectedIndices.includes(localRecipes.indexOf(recipe)) && 
-                !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
-            );
+            // Clear historical dishes - pass empty array to prioritize cuisine selection over avoiding duplicates
+            // This ensures the API focuses on the selected cuisines rather than avoiding similar recipes
+            const existingRecipeNames: Recipe[] = [];
 
             // Generate single recipe for reroll with index management
             const generateSingleRecipeForRerollWithIndex = async (
@@ -792,6 +797,15 @@ export default function QuantitativeNutrition(props: {
                 try {
                     const cuisinesToSend = cuisinesToUse || getCuisinesForGeneration();
                     console.log(`🍜 [REROLL INDEX ${originalIndex}] Sending cuisines to API:`, cuisinesToSend);
+                    console.log(`🍜 [REROLL INDEX ${originalIndex}] Existing recipes count:`, existingRecipeNames.length);
+                    console.log(`🍜 [REROLL INDEX ${originalIndex}] API Request payload:`, {
+                        cuisines: cuisinesToSend,
+                        existingRecipesCount: existingRecipeNames.length,
+                        calorieTarget: targetCalories,
+                        proteinTarget: targetProtein,
+                        fatTarget: targetFat,
+                        cookDate: cookDate
+                    });
                     
                     const response = await fetch('/api/recipe', {
                         method: 'POST',
@@ -823,10 +837,24 @@ export default function QuantitativeNutrition(props: {
                     console.log(`🌟 [REROLL INDEX ${originalIndex}] API Response received:`, {
                         recipeId: recipe?.id,
                         recipeName: recipe?.recipe_name,
+                        recipeCuisine: recipe?.cuisine,
                         ingredientsCount: ingredients.length,
                         preprocessingCount: preprocessing.length,
                         stepsCount: steps.length
                     });
+                    
+                    // Verify cuisine match
+                    if (recipe?.cuisine && cuisinesToSend.length > 0) {
+                        const cuisineMatch = cuisinesToSend.some(cuisine => 
+                            recipe.cuisine.toLowerCase().includes(cuisine.toLowerCase()) ||
+                            cuisine.toLowerCase().includes(recipe.cuisine.toLowerCase())
+                        );
+                        console.log(`🍜 [REROLL INDEX ${originalIndex}] Cuisine verification:`, {
+                            requestedCuisines: cuisinesToSend,
+                            receivedCuisine: recipe.cuisine,
+                            isMatch: cuisineMatch
+                        });
+                    }
 
                     if (!recipe || typeof recipe !== 'object') {
                         throw new Error('Invalid recipe data received');
@@ -1096,15 +1124,18 @@ export default function QuantitativeNutrition(props: {
                                 <span>&nbsp;Change&nbsp;</span>
                             </div>
                             {isCuisinePopupOpen && (
-                                <CuisineInput
-                                    cuisineSet={selectedRerollCuisines}
-                                    searchSet={searchSet.searchSet}
-                                    closeCuisineSearch={(cuisines) => {
-                                        setSelectedRerollCuisines(cuisines.length > 0 ? cuisines : []);
-                                        setCustomCuisine(cuisines.length > 0 ? cuisines[0] : "...");
-                                        setIsCuisinePopupOpen(false);
-                                    }}
-                                />
+                                                            <CuisineInput
+                                cuisineSet={selectedRerollCuisines}
+                                searchSet={searchSet.searchSet}
+                                closeCuisineSearch={(cuisines) => {
+                                    // Ensure we always have at least the default meal plan cuisines
+                                    const finalCuisines = cuisines.length > 0 ? cuisines : mealPlan.cuisines.slice(0, 4);
+                                    setSelectedRerollCuisines(finalCuisines);
+                                    setCustomCuisine(finalCuisines.length > 0 ? finalCuisines[0] : "...");
+                                    setIsCuisinePopupOpen(false);
+                                    console.log('🍜 [CUISINE UPDATE] Selected reroll cuisines updated to:', finalCuisines);
+                                }}
+                            />
                             )}
                         </div>
                         <div className="flex-auto"></div>
