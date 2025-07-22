@@ -1,0 +1,25 @@
+# syntax=docker.io/docker/dockerfile:1
+
+FROM node:18-alpine AS development
+
+# Install dependencies
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /app
+
+# Install dependencies
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+RUN corepack enable pnpm && pnpm install
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Set environment
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Default command (can be overridden in docker-compose)
+CMD ["pnpm", "dev"] 
