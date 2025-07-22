@@ -2,6 +2,7 @@
 
 import { login, signup } from "./actions"
 import { useState, useTransition } from "react"
+import { useSearchParams } from "next/navigation"
 import Script from "next/script"
 import Image from "next/image"
 
@@ -9,6 +10,8 @@ export default function LoginPage() {
     const [isPending, startTransition] = useTransition()
     const [isSignUp, setIsSignUp] = useState(false)
     const [showPassword, setShowPassword] = useState(false)
+    const searchParams = useSearchParams()
+    const message = searchParams?.get('message')
 
     const handleSubmit = (formData: FormData) => {
         startTransition(async () => {
@@ -43,6 +46,14 @@ export default function LoginPage() {
                             <p className="text-gray-600 text-lg">
                                 {isSignUp ? 'Get started with your account' : 'Sign in to continue'}
                             </p>
+                            {message === 'check-email' && (
+                                <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+                                    <h3 className="text-lg font-semibold text-blue-800 mb-2">Check your email!</h3>
+                                    <p className="text-blue-700">
+                                        We&apos;ve sent you a confirmation link. Please check your email and click the link to verify your account.
+                                    </p>
+                                </div>
+                            )}
                         </div>
 
                         <div className="bg-white rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.08)] p-10 relative">
