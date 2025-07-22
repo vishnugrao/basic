@@ -6,7 +6,7 @@ import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, insertRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, updateMultipleRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateMultipleSteps, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes, getWallet } from "../actions";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -70,6 +70,19 @@ export default function DashboardClient({
         await updateWallet(updatedWallet);
     };
 
+    // Function to refresh wallet data from server (for AJAX updates after payments)
+    const handleWalletRefresh = async () => {
+        try {
+            console.log('🔵 [WALLET REFRESH] Fetching fresh wallet data via AJAX')
+            const freshWalletData = await getWallet(userDetails.id);
+            setWallet(freshWalletData);
+            console.log('✅ [WALLET REFRESH] Wallet data refreshed successfully:', freshWalletData)
+        } catch (error) {
+            console.error('❌ [WALLET REFRESH] Error refreshing wallet data:', error)
+            throw error; // Re-throw to allow UserWallet to handle fallback
+        }
+    };
+
     const handleUserUpdate = async (updates: Partial<User>) => {
         const updatedUser = { ...userDetails, ...updates, updated_at: new Date().toISOString() };
         setUserDetails(updatedUser);
@@ -121,13 +134,12 @@ export default function DashboardClient({
 
     const handleRecipesUpdateAll = async (updates: Recipe[]) => {
         try {
-            await Promise.all(recipesDetails.map(recipe =>
-                deleteRecipes(recipe.user_id, recipe.id)
-            ));
+            // Use the new batch update function that handles upsert + delete orphans
+            await updateMultipleRecipes(userDetails.id, updates);
+            
+            // Update local state
             setRecipesDetails(updates);
-            await Promise.all(updates.map(recipe =>
-                insertRecipes(recipe)
-            ));
+            console.log('Recipes database update completed successfully');
         } catch (error) {
             console.error('Error updating recipes:', error);
         }
@@ -226,7 +238,22 @@ export default function DashboardClient({
     }
 
     const handleStepsUpdate = async (updates: Step[]) => {
-        setStepsDetails(updates);
+        try {
+            await updateMultipleSteps(userDetails.id, updates.map(step => ({
+                id: step.id,
+                user_id: step.user_id,
+                recipe_id: step.recipe_id,
+                step_number: step.step_number,
+                instruction: step.instruction,
+                duration: step.duration,
+                indicator: step.indicator,
+                updated_at: new Date().toISOString()
+            })));
+            setStepsDetails(updates);
+            console.log('Steps database update completed successfully');
+        } catch (error) {
+            console.error('Error updating steps:', error);
+        }
     }
 
     return (
@@ -260,6 +287,7 @@ export default function DashboardClient({
                     isCuisineSearchOpen={isCuisineSearchOpen}
                     setIsCuisineSearchOpen={setIsCuisineSearchOpen}
                     onUpdate={handleMealPlanUpdate}
+                    onWalletRefresh={handleWalletRefresh}
                 />
             </div>
             <div className="p-10 pt-20">

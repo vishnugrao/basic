@@ -16,6 +16,64 @@ export async function insertRecipes(recipe: Recipe) {
     }
 }
 
+// Batch update for Recipes using upsert + delete orphans pattern
+export async function updateMultipleRecipes(user_id: UUID, recipes: Recipe[]) {
+    const supabase = await createClient();
+    try {
+        console.log('[RECIPES] Starting upsert operation for user:', user_id);
+        
+        // Ensure updated_at is set for all recipes
+        const recipesWithTimestamps = recipes.map(recipe => ({
+            ...recipe,
+            updated_at: new Date().toISOString()
+        }));
+        
+        // Get recipe IDs that should exist
+        const validRecipeIds = [...new Set(recipes.map(recipe => recipe.id))];
+        console.log('[RECIPES] Valid recipe IDs:', validRecipeIds);
+
+        // Insert/update all recipes
+        const { error: upsertError } = await supabase
+            .from('Recipes')
+            .upsert(recipesWithTimestamps, { onConflict: 'id' });
+
+        if (upsertError) {
+            console.log('[RECIPES] Error upserting recipes:', upsertError);
+            throw new Error(`Failed to upsert recipes: ${upsertError.message}`);
+        }
+
+        // Delete orphaned recipes (those belonging to this user but not in our list)
+        if (validRecipeIds.length > 0) {
+            const { error: deleteError } = await supabase
+                .from('Recipes')
+                .delete()
+                .eq('user_id', user_id)
+                .not('id', 'in', `(${validRecipeIds.join(',')})`);
+
+            if (deleteError) {
+                console.log('[RECIPES] Error deleting orphaned recipes:', deleteError);
+                throw new Error(`Failed to delete orphaned recipes: ${deleteError.message}`);
+            }
+        } else {
+            // If no valid recipes, delete all for this user
+            const { error: deleteError } = await supabase
+                .from('Recipes')
+                .delete()
+                .eq('user_id', user_id);
+
+            if (deleteError) {
+                console.log('[RECIPES] Error deleting all recipes:', deleteError);
+                throw new Error(`Failed to delete all recipes: ${deleteError.message}`);
+            }
+        }
+
+        console.log('[RECIPES] updateMultipleRecipes completed successfully');
+    } catch (error) {
+        console.log('[RECIPES] Error in updateMultipleRecipes:', error);
+        throw error;
+    }
+}
+
 export async function getUserDetails(email: string) {
     const supabase = await createClient()
 
@@ -220,34 +278,41 @@ export async function updateIngredientsById(ingredientDetails: {
 export async function updateMultipleIngredients(user_id: UUID, ingredients: Ingredient[]) {
     const supabase = await createClient();
     try {
-        // Note: This is not a true transaction. If you need true atomicity, use a Postgres function or RPC.
-        console.log('[INGREDIENTS] Deleting all ingredients for user:', user_id);
-        const { error: deleteError } = await supabase
-            .from('Ingredients')
-            .delete()
-            .eq('user_id', user_id);
-
-        if (deleteError) {
-            console.log('[INGREDIENTS] Error deleting ingredients:', deleteError);
-            throw new Error(`Failed to delete ingredients: ${deleteError.message}`);
-        }
-
-        console.log('[INGREDIENTS] Inserting new ingredients batch for user:', user_id);
+        console.log('[INGREDIENTS] Starting upsert operation for user:', user_id);
         
         // Ensure created_at is set for all ingredients
         const ingredientsWithTimestamps = ingredients.map(ingredient => ({
             ...ingredient,
             created_at: ingredient.created_at || new Date().toISOString(),
-            updated_at: ingredient.updated_at || new Date().toISOString()
+            updated_at: new Date().toISOString()
         }));
         
-        const { error: insertError } = await supabase
-            .from('Ingredients')
-            .insert(ingredientsWithTimestamps);
+        // Get recipe IDs that should exist
+        const validRecipeIds = [...new Set(ingredients.map(ing => ing.recipe_id))];
+        console.log('[INGREDIENTS] Valid recipe IDs:', validRecipeIds);
 
-        if (insertError) {
-            console.log('[INGREDIENTS] Error inserting ingredients:', insertError);
-            throw new Error(`Failed to insert ingredients: ${insertError.message}`);
+        // Insert/update all ingredients
+        const { error: upsertError } = await supabase
+            .from('Ingredients')
+            .upsert(ingredientsWithTimestamps, { onConflict: 'id' });
+
+        if (upsertError) {
+            console.log('[INGREDIENTS] Error upserting ingredients:', upsertError);
+            throw new Error(`Failed to upsert ingredients: ${upsertError.message}`);
+        }
+
+        // Delete orphaned ingredients (those belonging to recipe IDs not in our list)
+        if (validRecipeIds.length > 0) {
+            const { error: deleteError } = await supabase
+                .from('Ingredients')
+                .delete()
+                .eq('user_id', user_id)
+                .not('recipe_id', 'in', `(${validRecipeIds.join(',')})`);
+
+            if (deleteError) {
+                console.log('[INGREDIENTS] Error deleting orphaned ingredients:', deleteError);
+                throw new Error(`Failed to delete orphaned ingredients: ${deleteError.message}`);
+            }
         }
 
         console.log('[INGREDIENTS] updateMultipleIngredients completed successfully');
@@ -257,7 +322,7 @@ export async function updateMultipleIngredients(user_id: UUID, ingredients: Ingr
     }
 }
 
-// Batch update for Steps (not a true transaction, see note above)
+// Batch update for Steps using upsert + delete orphans pattern
 export async function updateMultipleSteps(user_id: UUID, steps: Array<{
     id: UUID,
     user_id: UUID,
@@ -270,25 +335,40 @@ export async function updateMultipleSteps(user_id: UUID, steps: Array<{
 }>) {
     const supabase = await createClient();
     try {
-        console.log('[STEPS] Deleting all steps for user:', user_id);
-        const { error: deleteError } = await supabase
-            .from('Steps')
-            .delete()
-            .eq('user_id', user_id);
+        console.log('[STEPS] Starting upsert operation for user:', user_id);
+        
+        // Ensure updated_at is set for all steps
+        const stepsWithTimestamps = steps.map(step => ({
+            ...step,
+            updated_at: new Date().toISOString()
+        }));
+        
+        // Get recipe IDs that should exist
+        const validRecipeIds = [...new Set(steps.map(step => step.recipe_id))];
+        console.log('[STEPS] Valid recipe IDs:', validRecipeIds);
 
-        if (deleteError) {
-            console.log('[STEPS] Error deleting steps:', deleteError);
-            throw new Error(`Failed to delete steps: ${deleteError.message}`);
+        // Insert/update all steps
+        const { error: upsertError } = await supabase
+            .from('Steps')
+            .upsert(stepsWithTimestamps, { onConflict: 'id' });
+
+        if (upsertError) {
+            console.log('[STEPS] Error upserting steps:', upsertError);
+            throw new Error(`Failed to upsert steps: ${upsertError.message}`);
         }
 
-        console.log('[STEPS] Inserting new steps batch for user:', user_id);
-        const { error: insertError } = await supabase
-            .from('Steps')
-            .insert(steps);
+        // Delete orphaned steps (those belonging to recipe IDs not in our list)
+        if (validRecipeIds.length > 0) {
+            const { error: deleteError } = await supabase
+                .from('Steps')
+                .delete()
+                .eq('user_id', user_id)
+                .not('recipe_id', 'in', `(${validRecipeIds.join(',')})`);
 
-        if (insertError) {
-            console.log('[STEPS] Error inserting steps:', insertError);
-            throw new Error(`Failed to insert steps: ${insertError.message}`);
+            if (deleteError) {
+                console.log('[STEPS] Error deleting orphaned steps:', deleteError);
+                throw new Error(`Failed to delete orphaned steps: ${deleteError.message}`);
+            }
         }
 
         console.log('[STEPS] updateMultipleSteps completed successfully');
@@ -327,37 +407,45 @@ export async function updateSpecificPreprocessing(user_id: UUID, operation: stri
     }
 }
 
-// Batch update for PreProcessing (not a true transaction, see note above)
+// Batch update for PreProcessing using upsert + delete orphans pattern
 export async function updateMultiplePreprocessing(user_id: UUID, preprocessing: Preprocessing[]) {
     const supabase = await createClient();
     try {
-        console.log('[PREPROCESSING] Deleting all preprocessing for user:', user_id);
-        const { error: deleteError } = await supabase
-            .from('Preprocessing')
-            .delete()
-            .eq('user_id', user_id);
-
-        if (deleteError) {
-            console.log('[PREPROCESSING] Error deleting preprocessing:', deleteError);
-            throw new Error(`Failed to delete preprocessing: ${deleteError.message}`);
-        }
-
-        console.log('[PREPROCESSING] Inserting new preprocessing batch for user:', user_id);
+        console.log('[PREPROCESSING] Starting upsert operation for user:', user_id);
         
         // Ensure created_at is set for all preprocessing
         const preprocessingWithTimestamps = preprocessing.map(prep => ({
             ...prep,
             created_at: prep.created_at || new Date().toISOString(),
-            updated_at: prep.updated_at || new Date().toISOString()
+            updated_at: new Date().toISOString()
         }));
         
-        const { error: insertError } = await supabase
-            .from('Preprocessing')
-            .insert(preprocessingWithTimestamps);
+        // Get recipe IDs that should exist
+        const validRecipeIds = [...new Set(preprocessing.map(prep => prep.recipe_id))];
+        console.log('[PREPROCESSING] Valid recipe IDs:', validRecipeIds);
 
-        if (insertError) {
-            console.log('[PREPROCESSING] Error inserting preprocessing:', insertError);
-            throw new Error(`Failed to insert preprocessing: ${insertError.message}`);
+        // Insert/update all preprocessing
+        const { error: upsertError } = await supabase
+            .from('Preprocessing')
+            .upsert(preprocessingWithTimestamps, { onConflict: 'id' });
+
+        if (upsertError) {
+            console.log('[PREPROCESSING] Error upserting preprocessing:', upsertError);
+            throw new Error(`Failed to upsert preprocessing: ${upsertError.message}`);
+        }
+
+        // Delete orphaned preprocessing (those belonging to recipe IDs not in our list)
+        if (validRecipeIds.length > 0) {
+            const { error: deleteError } = await supabase
+                .from('Preprocessing')
+                .delete()
+                .eq('user_id', user_id)
+                .not('recipe_id', 'in', `(${validRecipeIds.join(',')})`);
+
+            if (deleteError) {
+                console.log('[PREPROCESSING] Error deleting orphaned preprocessing:', deleteError);
+                throw new Error(`Failed to delete orphaned preprocessing: ${deleteError.message}`);
+            }
         }
 
         console.log('[PREPROCESSING] updateMultiplePreprocessing completed successfully');
