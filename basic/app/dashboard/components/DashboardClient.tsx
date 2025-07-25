@@ -6,7 +6,8 @@ import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, updateMultipleRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateMultipleSteps, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes, getWallet } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, updateMultipleRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateMultipleSteps, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes, getWallet, signOutUser, deleteAccount, updateUserName } from "../actions";
+import InlineInput from "./InlineInput";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -87,6 +88,30 @@ export default function DashboardClient({
         const updatedUser = { ...userDetails, ...updates, updated_at: new Date().toISOString() };
         setUserDetails(updatedUser);
         await updateUserDetails(updatedUser);
+    };
+
+    const handleUsernameUpdate = async (newName: string) => {
+        const updatedUser = { ...userDetails, name: newName, updated_at: new Date().toISOString() };
+        setUserDetails(updatedUser);
+        await updateUserName({
+            name: newName,
+            updated_at: new Date().toISOString(),
+            user_id: userDetails.id
+        });
+    };
+
+    const handleSignOut = async () => {
+        if (confirm('Are you sure you want to sign out?')) {
+            await signOutUser();
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (confirm('Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.')) {
+            if (confirm('This will permanently delete all your recipes, meal plans, and account data. Are you absolutely sure?')) {
+                await deleteAccount();
+            }
+        }
     };
 
     const handleGoalUpdate = async (updates: Partial<Goal>) => {
@@ -259,7 +284,29 @@ export default function DashboardClient({
     return (
         <div className="flex flex-col">
             <div className="px-10 pt-10 pb-5 flex">
-                <p className="flex-auto text-2xl">Hello {userDetails.name}</p>
+                <div className="flex-auto flex items-center">
+                    <span className="text-2xl mr-2">Hello</span>
+                    <div className="text-2xl">
+                        <InlineInput 
+                            text={userDetails.name} 
+                            onSetText={handleUsernameUpdate} 
+                        />
+                    </div>
+                </div>
+                <div className="flex items-center gap-4 mr-4">
+                    <button
+                        onClick={handleSignOut}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                        Sign Out
+                    </button>
+                    <button
+                        onClick={handleDeleteAccount}
+                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                        Delete Account
+                    </button>
+                </div>
                 <UserDetails 
                     userDetails={userDetails}
                     heightUnit={heightUnit}

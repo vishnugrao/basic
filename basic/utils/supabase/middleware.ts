@@ -7,6 +7,9 @@ export async function updateSession(request:NextRequest) {
         request,
     })
 
+    console.log('🔵 [MIDDLEWARE] Processing request:', request.nextUrl.pathname)
+    console.log('🔵 [MIDDLEWARE] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...')
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -16,7 +19,7 @@ export async function updateSession(request:NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({name, value, options}) => request.cookies.set(name, value))
+                    cookiesToSet.forEach(({name, value}) => request.cookies.set(name, value))
                     supabaseResponse = NextResponse.next({
                         request,
                     })
@@ -26,15 +29,36 @@ export async function updateSession(request:NextRequest) {
         }
     )
 
-    const {
-        data: { user },   
-    } = await supabase.auth.getUser()
+    try {
+        const {
+            data: { user },   
+        } = await supabase.auth.getUser()
 
-    if ( !user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/auth')) {
+        console.log('🔵 [MIDDLEWARE] User check result:', user ? 'authenticated' : 'not authenticated')
+
+        if ( !user && !request.nextUrl.pathname.startsWith('/login') && !request.nextUrl.pathname.startsWith('/auth/callback') && !request.nextUrl.pathname.startsWith('/error')) {
+            console.log('🔵 [MIDDLEWARE] Redirecting to login from:', request.nextUrl.pathname)
+            const url = request.nextUrl.clone()
+            url.pathname = '/login'
+            return NextResponse.redirect(url)
+        }
+
+        return supabaseResponse
+    } catch (error) {
+        console.error('❌ [MIDDLEWARE] Error during user check:', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+            cause: error instanceof Error ? error.cause : undefined,
+            pathname: request.nextUrl.pathname
+        })
+        
+        // In case of error, still allow access to login, auth callback, and error pages
+        if (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/auth/callback') || request.nextUrl.pathname.startsWith('/error')) {
+            return supabaseResponse
+        }
+        
+        // For other pages, redirect to login
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
-
-    return supabaseResponse
 }

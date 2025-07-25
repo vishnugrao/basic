@@ -4,22 +4,17 @@ import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
 import { createClient } from "@/utils/supabase/server"
 
-interface GoogleSignInResponse {
-    credential: string;
-}
-
-export async function handleSignInWithGoogle(response: GoogleSignInResponse): Promise<void> {
+export async function signOut(): Promise<void> {
     const supabase = await createClient()
     
-    const { error } = await supabase.auth.signInWithIdToken({
-        provider: 'google',
-        token: response.credential,
-    })
+    const { error } = await supabase.auth.signOut()
 
     if (error) {
-        redirect('/error')
+        console.error('❌ [SIGN_OUT] Error signing out:', error)
+        redirect('/error?error=SignOutError&error_description=Failed to sign out')
     }
 
+    console.log('✅ [SIGN_OUT] User signed out successfully')
     revalidatePath('/', 'layout')
-    redirect('/')
+    redirect('/login')
 } 

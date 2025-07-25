@@ -597,3 +597,62 @@ export async function updateWallet(walletDetails: {
         throw error
     }
 }
+
+export async function deleteAccount() {
+    const supabase = await createClient()
+    
+    try {
+        // Get the current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        
+        if (userError || !user) {
+            console.error('❌ [DELETE_ACCOUNT] Error getting user:', userError)
+            redirect('/error?error=DeleteAccountError&error_description=Failed to get user data')
+        }
+        
+        const userId = user.id
+        console.log('🔵 [DELETE_ACCOUNT] Deleting all data for user:', userId)
+        
+        // Delete all user data in the correct order (respecting foreign key constraints)
+        // 1. Delete recipes and related data
+        await supabase.from('Steps').delete().eq('user_id', userId)
+        await supabase.from('Preprocessing').delete().eq('user_id', userId)
+        await supabase.from('Ingredients').delete().eq('user_id', userId)
+        await supabase.from('Recipes').delete().eq('user_id', userId)
+        
+        // 2. Delete other user data
+        await supabase.from('Wallets').delete().eq('user_id', userId)
+        await supabase.from('SearchSet').delete().eq('user_id', userId)
+        await supabase.from('MealPlan').delete().eq('user_id', userId)
+        await supabase.from('Goals').delete().eq('user_id', userId)
+        
+        // 3. Finally delete the user record
+        await supabase.from('Users').delete().eq('id', userId)
+        
+        // 4. Sign out and delete the auth user
+        await supabase.auth.signOut()
+        
+        console.log('✅ [DELETE_ACCOUNT] Successfully deleted all user data')
+        
+    } catch (error) {
+        console.error('❌ [DELETE_ACCOUNT] Error deleting account:', error)
+        redirect('/error?error=DeleteAccountError&error_description=Failed to delete account')
+    }
+    
+    // Redirect to login page
+    redirect('/login')
+}
+
+export async function signOutUser() {
+    const supabase = await createClient()
+    
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+        console.error('❌ [SIGN_OUT] Error signing out:', error)
+        redirect('/error?error=SignOutError&error_description=Failed to sign out')
+    }
+
+    console.log('✅ [SIGN_OUT] User signed out successfully')
+    redirect('/login')
+}
