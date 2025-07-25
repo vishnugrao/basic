@@ -143,6 +143,21 @@ export default function RecipeDisplay(props: {
         await onUpdatePreprocessing(localPreprocessing);
     };
 
+    const [visibleIndicators, setVisibleIndicators] = useState<Set<string>>(new Set());
+
+    // Toggle indicator visibility for a specific step
+    const toggleIndicator = (stepId: string) => {
+        setVisibleIndicators(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(stepId)) {
+                newSet.delete(stepId);
+            } else {
+                newSet.add(stepId);
+            }
+            return newSet;
+        });
+    };
+
     return (
         <div className="flex flex-col gap-6 p-6 bg-white rounded-xl border-4 border-current">
             {/* Recipe Title with Buttons */}
@@ -206,31 +221,47 @@ export default function RecipeDisplay(props: {
                             </div>
                         </div>
                     ) : recipeSteps.length > 0 && (
-                        <div className="flex flex-col gap-3">
-                            <h3 className="text-2xl font-medium text-[#B1454A]">Instructions</h3>
-                            <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-3 md:gap-4">
+                            <h3 className="text-lg md:text-2xl font-medium text-[#B1454A]">Instructions</h3>
+                            <div className="flex flex-col gap-3 md:gap-4">
                                 {recipeSteps
                                     .sort((a, b) => a.step_number - b.step_number)
                                     .map((step) => (
-                                        <div key={step.id} className="flex gap-4">
-                                            <div className="flex-shrink-0 w-8 h-8 bg-[#B1454A] text-white rounded-full flex items-center justify-center text-2xl font-medium">
+                                        <div key={step.id} className="flex gap-3 md:gap-4">
+                                            <div className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 bg-[#B1454A] text-white rounded-full flex items-center justify-center text-sm md:text-lg font-medium">
                                                 {step.step_number}
                                             </div>
-                                            <div className="flex flex-col gap-1">
-                                                <p className="text-2xl text-[#B1454A]">{step.instruction}</p>
-                                                {step.duration && (
-                                                    <p className="text-2xl text-gray-600">Duration: {step.duration} minutes</p>
-                                                )}
-                                                {step.indicator && (
-                                                    <p className="text-2xl text-gray-600">Indicator: {step.indicator}</p>
-                                                )}
+                                            <div className="flex flex-col gap-1 md:gap-2 flex-1">
+                                                <p className="text-sm md:text-xl text-[#B1454A] leading-relaxed">{step.instruction}</p>
+                                                <div className="flex flex-col md:flex-row gap-2 md:gap-4">
+                                                    {step.duration && (
+                                                        <p className="text-xs md:text-lg text-gray-600">Duration: {step.duration} minutes</p>
+                                                    )}
+                                                    {step.indicator && (
+                                                        <div className="flex flex-col gap-1">
+                                                            <button
+                                                                onClick={() => toggleIndicator(step.id)}
+                                                                className="border-2 border-current rounded-lg cursor-pointer text-xs md:text-sm w-fit px-2 py-1 hover:bg-gray-50 transition-colors"
+                                                            >
+                                                                <span className="font-medium">
+                                                                    {visibleIndicators.has(step.id) ? 'Hide' : 'Show'} Doneness
+                                                                </span>
+                                                            </button>
+                                                            {visibleIndicators.has(step.id) && (
+                                                                <div className="border-2 border-green-500 rounded-lg text-xs md:text-sm w-fit px-2 py-1 bg-green-50">
+                                                                    <span className="text-green-700 font-medium">✓ {step.indicator}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                     ))}
                             </div>
                             <div 
                                 onClick={handleUpdateSteps}
-                                className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit hidden"
+                                className="border-4 border-current rounded-xl cursor-pointer text-sm md:text-2xl w-fit hidden"
                             >
                                 <p>&nbsp;Update Steps&nbsp;</p>
                             </div>

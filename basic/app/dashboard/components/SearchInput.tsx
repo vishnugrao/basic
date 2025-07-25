@@ -111,27 +111,27 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
         const sortedSuggestions = sortBySimilarity(props.searchSet, searchValue)
             .slice(0, 20)
             .map((suggestion, idx) => (
-                <div key={idx} 
-                className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                <div key={`suggestion-${suggestion}-${idx}`} 
+                className="border md:border-4 border-current rounded-md md:rounded-xl cursor-pointer text-sm md:text-2xl w-fit"
                 onClick={() => {
                     addCuisine(suggestion, idx.toString());
                     setSearchValue("Search for a cuisine");
                     }}>
-                    <p>&nbsp;{suggestion}&nbsp;</p>
+                    <p className="px-2 py-0.5 md:px-3 md:py-1">{suggestion}</p>
                 </div>
             ));
         setSearchSuggestions(sortedSuggestions);
     }, [props.searchSet, searchValue, addCuisine]);
 
-    // Update width when search value changes
+    // Update width and suggestions when search value changes
     useEffect(() => {
         updateInputWidth();
         updateSearchSuggestions();
-    }, [searchValue, updateInputWidth, updateSearchSuggestions]);
+    }, [searchValue]); // Keep only searchValue to prevent infinite loops
     
     return (
         <>
-            <span className="inline-text relative p-10" ref={wrapperRef}>
+            <span className="inline-text relative p-4 md:p-10" ref={wrapperRef}>
                 <span
                     ref={textRef}
                     onClick={handleSpanClick}
@@ -154,7 +154,7 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
                     {searchValue}
                 </span>
             </span>
-            <div className="flex gap-4 flex-wrap p-10 pt-5">
+            <div className="flex gap-2 md:gap-4 flex-wrap p-4 md:p-10 pt-2 md:pt-5">
                 {searchSuggestions}
             </div>
         </>

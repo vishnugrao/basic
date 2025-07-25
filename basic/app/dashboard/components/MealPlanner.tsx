@@ -37,34 +37,68 @@ export default function MealPlanner({
     }
 
     return(
-        <div className="flex">
-            <div className="flex w-1/3 flex-col gap-4">
-                <div className="flex items-baseline h-10">
-                    <p className="min-w-[200px] text-2xl whitespace-nowrap">Top 4 cuisines:&nbsp;&nbsp;</p>
-                    <div className="flex items-baseline text-2xl">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-0">
+            {/* Mobile Layout - Stack vertically */}
+            <div className="flex flex-col md:hidden space-y-4">
+                {/* Cuisines Section */}
+                <div className="space-y-2">
+                    <p className="text-lg whitespace-nowrap font-medium">Top 4 cuisines:</p>
+                    <div className="flex items-center gap-2">
                         <BubbleInput 
                             currentPreferences={mealPlan.cuisines} 
                             limitPreferences={limitPreferences}
                         />
-                    </div>
-
-                    <div className="flex-auto"></div>
-                    
-                    <div className="flex items-baseline text-2xl pl-4">
-                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
-                        onClick={toggleCuisineSearch}
+                        <div className="border md:border-4 border-current rounded-md md:rounded-xl cursor-pointer text-sm md:text-lg w-fit flex-shrink-0"
+                            onClick={toggleCuisineSearch}
                         >
-                            <p>&nbsp;Change&nbsp;</p>
+                            <p className="px-2 py-0.5 md:px-4 md:py-2">Change</p>
                         </div>
-                        {isCuisineSearchOpen && <CuisineInput cuisineSet={mealPlan.cuisines} searchSet={searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
                     </div>
+                    {isCuisineSearchOpen && (
+                        <CuisineInput 
+                            cuisineSet={mealPlan.cuisines} 
+                            searchSet={searchSet.searchSet} 
+                            closeCuisineSearch={closeCuisineSearch} 
+                        />
+                    )}
+                </div>
+
+                {/* Wallet Section */}
+                <div className="pt-4 border-t border-gray-200">
+                    <UserWallet wallet={wallet} onWalletRefresh={onWalletRefresh} />
                 </div>
             </div>
-            <div className="flex-auto"></div>
-            <div className="flex w-1/3">
-                <UserWallet wallet={wallet} onWalletRefresh={onWalletRefresh} />
+
+            {/* Desktop Layout - Keep original for large screens */}
+            <div className="hidden md:flex w-full">
+                <div className="flex w-1/3 flex-col gap-4">
+                    <div className="flex items-baseline h-10">
+                        <p className="min-w-[200px] text-2xl whitespace-nowrap">Top 4 cuisines:&nbsp;&nbsp;</p>
+                        <div className="flex items-baseline text-2xl">
+                            <BubbleInput 
+                                currentPreferences={mealPlan.cuisines} 
+                                limitPreferences={limitPreferences}
+                            />
+                        </div>
+
+                        <div className="flex-auto"></div>
+                        
+                        <div className="flex items-baseline text-2xl pl-4">
+                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                            onClick={toggleCuisineSearch}
+                            >
+                                <p>&nbsp;Change&nbsp;</p>
+                            </div>
+                            {isCuisineSearchOpen && <CuisineInput cuisineSet={mealPlan.cuisines} searchSet={searchSet.searchSet} closeCuisineSearch={closeCuisineSearch} />}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex-auto"></div>
+                <div className="flex w-1/3">
+                    <UserWallet wallet={wallet} onWalletRefresh={onWalletRefresh} />
+                </div>
+                <div className="flex-auto"></div>
             </div>
-            <div className="flex-auto"></div>
         </div>
     )
 }

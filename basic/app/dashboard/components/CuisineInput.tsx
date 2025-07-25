@@ -20,13 +20,25 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
         }
     }))
     const[ slotCuisineMap, setSlotCuisineMap ] = useState<SlotItemMapArray>(utils.initSlotItemMap(cuisines, 'id'))
-    console.log(slotCuisineMap);
     const slottedCuisines = useMemo(() => utils.toSlottedItems(cuisines, 'id', slotCuisineMap), [cuisines, slotCuisineMap])
     const swapyRef = useRef<Swapy|null>(null)
 
     const swapyContainerRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => utils.dynamicSwapy(swapyRef.current, cuisines, 'id', slotCuisineMap, setSlotCuisineMap), [cuisines, slotCuisineMap])
+    // Sync cuisines with props when cuisineSet changes
+    useEffect(() => {
+        const newCuisines = cuisineSet.map((cuisine, index) => ({
+            id: index.toString(),
+            cuisine: cuisine
+        }));
+        setCuisines(newCuisines);
+        setSlotCuisineMap(utils.initSlotItemMap(newCuisines, 'id'));
+        setNextId(cuisineSet.length);
+    }, [cuisineSet]);
+
+    useEffect(() => {
+        utils.dynamicSwapy(swapyRef.current, cuisines, 'id', slotCuisineMap, setSlotCuisineMap);
+    }, [cuisines]) // Remove slotCuisineMap from dependencies to prevent infinite loop
 
     useEffect(() => {
         if (rearrangeMode) {
@@ -44,7 +56,8 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
         }   
     }, [rearrangeMode])
 
-    const addCuisine = (cuisine: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const addCuisine = (cuisine: string, _id: string) => {
         const newId = nextId.toString();
         const newCuisine: SwapyItem = {
             id: newId,
@@ -73,13 +86,13 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                 );
             }}
         >
-            <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup"
+            <div className="flex flex-col bg-[#F5F5F1] w-11/12 md:w-2/3 rounded-xl popup"
                 onClick={(e) => {
                     e.stopPropagation();
                 }}>
-                <div className="flex flex-row p-10 pb-5">
+                <div className="flex flex-row p-4 md:p-10 pb-2 md:pb-5">
                     <div ref={swapyContainerRef} className="swapy-container">
-                        <div className="cuisines flex flex-row gap-4 flex-wrap">
+                        <div className="cuisines flex flex-row gap-2 md:gap-4 flex-wrap">
                             {slottedCuisines.map(({slotId, itemId, item}) => (
                                 <div data-swapy-slot={slotId} key={slotId}
                                     onClick={() => {
@@ -87,32 +100,32 @@ export default function CuisineInput(props: {cuisineSet: string[], searchSet: st
                                             removeCuisine(item!);
                                         }
                                     }}>
-                                    <div key={itemId} data-swapy-item={itemId} data-swapy-handle className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit">
-                                        <p>&nbsp;{item?.cuisine}&nbsp;</p>
+                                    <div data-swapy-item={itemId} data-swapy-handle className="border md:border-4 border-current rounded-md md:rounded-xl cursor-pointer text-sm md:text-2xl w-fit">
+                                        <p className="px-2 py-0.5 md:px-3 md:py-1">{item?.cuisine}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     </div>
                     <div className="flex-auto"></div>
-                    <div className="flex items-baseline text-2xl pl-2 gap-4">
-                        <div className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${rearrangeMode ? "border-transparent" : ""}`}
+                    <div className="flex items-baseline text-sm md:text-2xl pl-2 gap-2 md:gap-4">
+                        <div className={`border md:border-4 border-current rounded-md md:rounded-xl cursor-pointer text-sm md:text-2xl w-fit ${rearrangeMode ? "border-transparent" : ""}`}
                             onClick={() => {
                                 if (rearrangeMode) {
                                     setRearrangeMode(false);
                                 }
                             }}
                         >
-                            <p>&nbsp;Remove&nbsp;</p>
+                            <p className="px-2 py-0.5 md:px-3 md:py-1">Remove</p>
                         </div>
-                        <div className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${!rearrangeMode ? "border-transparent" : ""}`}
+                        <div className={`border md:border-4 border-current rounded-md md:rounded-xl cursor-pointer text-sm md:text-2xl w-fit ${!rearrangeMode ? "border-transparent" : ""}`}
                             onClick={() => {
                                 if (!rearrangeMode) {
                                     setRearrangeMode(true);
                                 }
                             }}
                         >
-                            <p>&nbsp;Rearrange&nbsp;</p>
+                            <p className="px-2 py-0.5 md:px-3 md:py-1">Rearrange</p>
                         </div>
                     </div>
                 </div>

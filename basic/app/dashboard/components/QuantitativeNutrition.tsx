@@ -7,6 +7,8 @@ import PreprocessingList from "./PreprocessingList";
 import RecipeDisplay from "./RecipeDisplay";
 import CuisineInput from "./CuisineInput";
 import BubbleInput from "./BubbleInput";
+import { useRouter } from "next/navigation";
+import RerollSelectionModal from "./RerollSelectionModal";
 
 // Simple mutex implementation for JavaScript
 class Mutex {
@@ -69,10 +71,11 @@ export default function QuantitativeNutrition(props: {
     onWalletUpdate: (cost: number, requestsMade: number) => Promise<void>,
     wallet: UserWallet
 }) {
+    const router = useRouter();
     const { userDetails, goalDetails, mealPlan, searchSet, recipesDetails, 
         ingredientsDetails, preprocessingDetails, stepsDetails, 
         isShoppingListOpen, setIsShoppingListOpen, onUpdateShoppingList, 
-        onUpdatePreprocessing, onUpdateSpecificPreprocessing, onUpdateSteps, onWalletUpdate, wallet, onSelectiveDelete } = props;
+        onUpdatePreprocessing, onUpdateSpecificPreprocessing, onUpdateSteps, onWalletUpdate, wallet } = props;
     
     // Local state for optimized operations
     const [localRecipes, setLocalRecipes] = useState<Recipe[]>(recipesDetails);
@@ -109,12 +112,19 @@ export default function QuantitativeNutrition(props: {
     const [isLoading, setIsLoading] = useState(false);
     const [customCuisine, setCustomCuisine] = useState("...");
     const [isPreprocessingOpen, setIsPreprocessingOpen] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [loadingRecipes, setLoadingRecipes] = useState<boolean[]>([false, false, false, false]);
-    const [selectedRecipes, setSelectedRecipes] = useState<Set<number>>(new Set());
     const [isInsufficientBalanceOpen, setIsInsufficientBalanceOpen] = useState(false);
     const [requiredAmount, setRequiredAmount] = useState(0);
     const [isCuisinePopupOpen, setIsCuisinePopupOpen] = useState(false);
     const [selectedRerollCuisines, setSelectedRerollCuisines] = useState<string[]>(mealPlan.cuisines);
+    
+    // Mobile recipe tabs state
+    const [activeRecipeTab, setActiveRecipeTab] = useState(0);
+    
+    // Reroll modal state
+    const [isRerollModalOpen, setIsRerollModalOpen] = useState(false);
+    const [rerollMode, setRerollMode] = useState<'selected' | 'all'>('selected');
 
     // Current balance
     const currentBalance = wallet.amount_paid - wallet.amount_used;
@@ -128,6 +138,30 @@ export default function QuantitativeNutrition(props: {
     const showInsufficientBalancePopup = (cost: number) => {
         setRequiredAmount(cost);
         setIsInsufficientBalanceOpen(true);
+    };
+
+    // Handle reroll confirmation from modal
+    const handleRerollConfirm = async (selectedRecipeIds: string[]) => {
+        if (selectedRecipeIds.length === 0) return;
+        
+        // Check balance before proceeding
+        const requiredCost = selectedRecipeIds.length * 0.03;
+        if (!checkBalance(requiredCost)) {
+            showInsufficientBalancePopup(requiredCost);
+            return;
+        }
+
+        if (rerollMode === 'all') {
+            // Reroll all recipes
+            rollRecipes(
+                tdee + offset - dailySnackCalories - dailyBreakfastCalories, 
+                protein - dailyBreakfastProtein, 
+                fat - dailyBreakfastFat
+            );
+        } else {
+            // Navigate to reroll page for selected recipes
+            router.push('/dashboard/reroll');
+        }
     };
 
     // Commit collected data to database atomically
@@ -191,6 +225,7 @@ export default function QuantitativeNutrition(props: {
     };
 
     // Smart commit that inserts entire local state with orphan cleanup
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const commitCollectedDataToDatabaseSmart = async (
         recipes: Recipe[], 
         ingredients: Ingredient[], 
@@ -441,28 +476,7 @@ export default function QuantitativeNutrition(props: {
         return mealPlan.cuisines.slice(0, 4);
     };
 
-    // Toggle recipe selection
-    const toggleRecipeSelection = (index: number) => {
-        setSelectedRecipes(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(index)) {
-                newSet.delete(index);
-            } else {
-                newSet.add(index);
-            }
-            return newSet;
-        });
-    };
 
-    // Select all recipes
-    const selectAllRecipes = () => {
-        setSelectedRecipes(new Set(localRecipes.map((_, index) => index)));
-    };
-
-    // Deselect all recipes
-    const deselectAllRecipes = () => {
-        setSelectedRecipes(new Set());
-    };
 
     // Generate single recipe for optimized rollRecipes
     const generateSingleRecipeOptimized = async (
@@ -690,410 +704,31 @@ export default function QuantitativeNutrition(props: {
 
 
 
-    const rerollSelectedRecipes = async () => {
-        if (selectedRecipes.size === 0) {
-            // No recipes selected, nothing to reroll
-            return;
-        }
 
-        // Check balance before proceeding (selected recipes * 3 cents each)
-        const requiredCost = selectedRecipes.size * 0.03;
-        if (!checkBalance(requiredCost)) {
-            showInsufficientBalancePopup(requiredCost);
-            return;
-        }
-
-        // Get selected indices and clear selection
-        const selectedIndices = Array.from(selectedRecipes);
-        setSelectedRecipes(new Set()); // Clear selection immediately
-
-        setIsLoading(true);
-        const loadingStates = [...loadingRecipes];
-        selectedIndices.forEach(index => {
-            loadingStates[index] = true;
-        });
-        setLoadingRecipes(loadingStates);
-
-        try {
-            // Get IDs from the ORIGINAL recipesDetails (not local state) to ensure accuracy
-            const selectedRecipeIds = selectedIndices.map(index => recipesDetails[index]?.id).filter(Boolean) as string[];
-            const originalCookDates = selectedIndices.map(index => localRecipes[index]?.cook_date).filter((date): date is Date => Boolean(date));
-            const recipesToDelete = selectedIndices.map(index => recipesDetails[index]).filter(Boolean);
-            
-            console.log('🔄 [REROLLSELECTED] Selected recipe IDs to remove data for:', selectedRecipeIds);
-            console.log('🔄 [REROLLSELECTED] Current local ingredients count:', localIngredients.length);
-            console.log('🔄 [REROLLSELECTED] Current local steps count:', localSteps.length);
-            console.log('🔄 [REROLLSELECTED] Current local preprocessing count:', localPreprocessing.length);
-            
-            // Immediately replace selected recipes with skeleton recipes (maintain array structure)
-            setLocalRecipes(prev => {
-                const newRecipes = [...prev];
-                selectedIndices.forEach((index, i) => {
-                    const skeletonRecipe = createSkeletonRecipe(index, originalCookDates[i], userDetails.id);
-                    newRecipes[index] = skeletonRecipe;
-                });
-                return newRecipes;
-            });
-            
-            // Remove related data ONLY for the selected recipes (using original recipe IDs)
-            setLocalIngredients(prev => {
-                const filtered = prev.filter(ing => !selectedRecipeIds.includes(ing.recipe_id));
-                console.log('🔄 [REROLLSELECTED] Filtered ingredients count:', filtered.length, 'removed:', prev.length - filtered.length);
-                return filtered;
-            });
-            setLocalPreprocessing(prev => {
-                const filtered = prev.filter(prep => !selectedRecipeIds.includes(prep.recipe_id));
-                console.log('🔄 [REROLLSELECTED] Filtered preprocessing count:', filtered.length, 'removed:', prev.length - filtered.length);
-                return filtered;
-            });
-            setLocalSteps(prev => {
-                const filtered = prev.filter(step => !selectedRecipeIds.includes(step.recipe_id));
-                console.log('🔄 [REROLLSELECTED] Filtered steps count:', filtered.length, 'removed:', prev.length - filtered.length);
-                return filtered;
-            });
-
-            // Calculate nutritional targets for selected recipes
-            const mealTypes: [number, number, number][] = [
-                // Sunday cook - Lunch M,T,W
-                [Math.round(3 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.5 * (fat - dailyBreakfastFat))], 
-                // Sunday cook - Dinner S,M,T,W
-                [Math.round(4 * 0.5 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.6 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.5 * (fat - dailyBreakfastFat))], 
-                // Wednesday cook - Lunch T,F,S,S
-                [Math.round(3 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(3 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(3 * 0.3 * (fat - dailyBreakfastFat))],
-                // Thursday cook - Dinner T,F,S
-                [Math.round(4 * 0.3 * (tdee + offset - dailySnackCalories - dailyBreakfastCalories)), Math.round(4 * 0.3 * (protein - dailyBreakfastProtein)), Math.round(4 * 0.3 * (fat - dailyBreakfastFat))]
-            ];
-
-            // Use selected reroll cuisines for reroll
-            let cuisinesToUse = selectedRerollCuisines.length > 0 ? selectedRerollCuisines : mealPlan.cuisines.slice(0, 4);
-            console.log('🍜 [REROLLSELECTED] Cuisine selection details:', {
-                selectedRerollCuisines: selectedRerollCuisines,
-                selectedRerollCuisinesLength: selectedRerollCuisines.length,
-                mealPlanCuisines: mealPlan.cuisines,
-                finalCuisinesToUse: cuisinesToUse,
-                willUseFallback: selectedRerollCuisines.length === 0
-            });
-            
-            // Ensure cuisines are properly set - this should never be empty
-            if (cuisinesToUse.length === 0) {
-                console.warn('🍜 [REROLLSELECTED] WARNING: No cuisines available, using default');
-                cuisinesToUse = ['Italian']; // Fallback to prevent empty cuisine array
-            }
-
-            // Clear historical dishes - pass empty array to prioritize cuisine selection over avoiding duplicates
-            // This ensures the API focuses on the selected cuisines rather than avoiding similar recipes
-            const existingRecipeNames: Recipe[] = [];
-
-            // Generate single recipe for reroll with index management
-            const generateSingleRecipeForRerollWithIndex = async (
-                originalIndex: number,
-                targetCalories: number, 
-                targetProtein: number, 
-                targetFat: number, 
-                cookDate: Date,
-                existingRecipeNames: Recipe[],
-                cuisinesToUse?: string[]
-            ) => {
-                try {
-                    const cuisinesToSend = cuisinesToUse || getCuisinesForGeneration();
-                    console.log(`🍜 [REROLL INDEX ${originalIndex}] Sending cuisines to API:`, cuisinesToSend);
-                    console.log(`🍜 [REROLL INDEX ${originalIndex}] Existing recipes count:`, existingRecipeNames.length);
-                    console.log(`🍜 [REROLL INDEX ${originalIndex}] API Request payload:`, {
-                        cuisines: cuisinesToSend,
-                        existingRecipesCount: existingRecipeNames.length,
-                        calorieTarget: targetCalories,
-                        proteinTarget: targetProtein,
-                        fatTarget: targetFat,
-                        cookDate: cookDate
-                    });
-                    
-                    const response = await fetch('/api/recipe', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            userDetails,
-                            goalDetails,
-                            cuisines: cuisinesToSend,
-                            existingRecipes: existingRecipeNames,
-                            calorieTarget: targetCalories,
-                            proteinTarget: targetProtein,
-                            fatTarget: targetFat,
-                            cookDate: cookDate,
-                        }),
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to generate recipe');
-                    }
-
-                    const data = await response.json();
-                    const recipe = data.recipe;
-                    const ingredients = data.ingredients || [];
-                    const preprocessing = data.preprocessing || [];
-                    const steps = data.steps || [];
-
-                    console.log(`🌟 [REROLL INDEX ${originalIndex}] API Response received:`, {
-                        recipeId: recipe?.id,
-                        recipeName: recipe?.recipe_name,
-                        recipeCuisine: recipe?.cuisine,
-                        ingredientsCount: ingredients.length,
-                        preprocessingCount: preprocessing.length,
-                        stepsCount: steps.length
-                    });
-                    
-                    // Verify cuisine match
-                    if (recipe?.cuisine && cuisinesToSend.length > 0) {
-                        const cuisineMatch = cuisinesToSend.some(cuisine => 
-                            recipe.cuisine.toLowerCase().includes(cuisine.toLowerCase()) ||
-                            cuisine.toLowerCase().includes(recipe.cuisine.toLowerCase())
-                        );
-                        console.log(`🍜 [REROLL INDEX ${originalIndex}] Cuisine verification:`, {
-                            requestedCuisines: cuisinesToSend,
-                            receivedCuisine: recipe.cuisine,
-                            isMatch: cuisineMatch
-                        });
-                    }
-
-                    if (!recipe || typeof recipe !== 'object') {
-                        throw new Error('Invalid recipe data received');
-                    }
-
-                    // Ensure proper recipe IDs on related data
-                    const ingredientsWithRecipeId = ingredients.map((ing: Ingredient) => ({ ...ing, recipe_id: recipe.id }));
-                    const preprocessingWithRecipeId = preprocessing.map((prep: Preprocessing) => ({ ...prep, recipe_id: recipe.id }));
-                    const stepsWithRecipeId = steps.map((step: Step) => ({ ...step, recipe_id: recipe.id }));
-
-                                         // Lock state and replace skeleton recipe at original index
-                     console.log(`🔒 [REROLL INDEX ${originalIndex}] Attempting to acquire mutex...`);
-                     await stateMutex.lock();
-                     console.log(`✅ [REROLL INDEX ${originalIndex}] Mutex acquired, updating state...`);
-                     try {
-                         console.log(`🔄 [REROLL INDEX ${originalIndex}] Replacing skeleton at index ${originalIndex}`);
-                         
-                         // Replace the skeleton recipe at the original index
-                         setLocalRecipes(prevRecipes => {
-                             const newRecipes = [...prevRecipes];
-                             newRecipes[originalIndex] = recipe;
-                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Recipe replaced at index ${originalIndex}`);
-                             return newRecipes;
-                         });
-                         
-                         setLocalIngredients(prev => {
-                             const newIngredients = [...prev, ...ingredientsWithRecipeId];
-                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Added ${ingredientsWithRecipeId.length} ingredients`);
-                             return newIngredients;
-                         });
-                         
-                         setLocalPreprocessing(prev => {
-                             const newPreprocessing = [...prev, ...preprocessingWithRecipeId];
-                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Added ${preprocessingWithRecipeId.length} preprocessing items`);
-                             return newPreprocessing;
-                         });
-                         
-                         setLocalSteps(prev => {
-                             const newSteps = [...prev, ...stepsWithRecipeId];
-                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Added ${stepsWithRecipeId.length} steps`);
-                             return newSteps;
-                         });
-                         
-                         // Update loading state for the original index
-                         setLoadingRecipes(prev => {
-                             const newState = [...prev];
-                             newState[originalIndex] = false;
-                             return newState;
-                         });
-                         
-                         console.log(`✅ [REROLL INDEX ${originalIndex}] State updates completed successfully`);
-                     } finally {
-                         console.log(`🔓 [REROLL INDEX ${originalIndex}] Releasing mutex...`);
-                         stateMutex.unlock();
-                         console.log(`✅ [REROLL INDEX ${originalIndex}] Mutex released`);
-                     }
-
-                    return { recipe, ingredients: ingredientsWithRecipeId, preprocessing: preprocessingWithRecipeId, steps: stepsWithRecipeId };
-                                 } catch (error) {
-                     // Update loading state even on error
-                     setLoadingRecipes(prev => {
-                         const newState = [...prev];
-                         newState[originalIndex] = false;
-                         return newState;
-                     });
-                     console.error(`Error generating recipe for original index ${originalIndex}:`, error);
-                     throw error;
-                 }
-            };
-
-            // Spawn separate threads for each recipe to be generated
-            const recipePromises = selectedIndices.map(async (originalIndex, i) => {
-                const originalCookDate = originalCookDates[i];
-                const mealType = mealTypes[originalIndex];
-                
-                return generateSingleRecipeForRerollWithIndex(
-                    originalIndex,
-                    mealType[0],
-                    mealType[1],
-                    mealType[2],
-                    originalCookDate,
-                    existingRecipeNames,
-                    cuisinesToUse
-                );
-            });
-
-            // Wait for all recipes to complete
-            const rerollResults = await Promise.all(recipePromises);
-            
-            // Collect all data from the reroll promises (this is the COMPLETE data)
-            const newRecipes = rerollResults.map(result => result.recipe);
-            const newIngredients = rerollResults.flatMap(result => result.ingredients);
-            const newPreprocessing = rerollResults.flatMap(result => result.preprocessing);
-            const newSteps = rerollResults.flatMap(result => result.steps);
-            
-            console.log('📊 [REROLLSELECTED] Collected reroll data:', {
-                newRecipesCount: newRecipes.length,
-                newIngredientsCount: newIngredients.length,
-                newPreprocessingCount: newPreprocessing.length,
-                newStepsCount: newSteps.length
-            });
-
-            // Delete original recipes from database now that new ones are ready
-            await onSelectiveDelete(recipesToDelete);
-
-            // Wait for all state updates to be applied
-            await new Promise(resolve => setTimeout(resolve, 200));
-            
-            // Build the final state from the actual collected data instead of relying on local state
-            // Combine the remaining unselected recipes with the new recipes from API responses
-            const originalSelectedRecipeIds = new Set(selectedIndices.map(index => recipesDetails[index]?.id).filter(Boolean));
-            
-            // Get unselected recipes from current local state
-            await stateMutex.lock();
-            let unselectedRecipes: Recipe[];
-            let unselectedIngredients: Ingredient[];
-            let unselectedPreprocessing: Preprocessing[];
-            let unselectedSteps: Step[];
-            
-            try {
-                unselectedRecipes = localRecipes.filter(recipe => 
-                    !originalSelectedRecipeIds.has(recipe.id) && 
-                    !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
-                );
-                
-                const unselectedRecipeIds = unselectedRecipes.map(r => r.id);
-                unselectedIngredients = localIngredients.filter(ing => unselectedRecipeIds.includes(ing.recipe_id));
-                unselectedPreprocessing = localPreprocessing.filter(prep => unselectedRecipeIds.includes(prep.recipe_id));
-                unselectedSteps = localSteps.filter(step => unselectedRecipeIds.includes(step.recipe_id));
-            } finally {
-                stateMutex.unlock();
-            }
-
-            // Build final arrays preserving original order by reconstructing the complete arrays
-            const finalRecipes: Recipe[] = [];
-            const finalIngredients: Ingredient[] = [];
-            const finalPreprocessing: Preprocessing[] = [];
-            const finalSteps: Step[] = [];
-
-            // Build recipe array preserving original order
-            for (let i = 0; i < 4; i++) { // Assuming 4 recipe slots
-                if (selectedIndices.includes(i)) {
-                    // This slot was selected for reroll - find the corresponding new recipe
-                    const correspondingNewRecipe = newRecipes[selectedIndices.indexOf(i)];
-                    if (correspondingNewRecipe) {
-                        finalRecipes[i] = correspondingNewRecipe;
-                        
-                        // Add related data for this new recipe
-                        const recipeIngredients = newIngredients.filter(ing => ing.recipe_id === correspondingNewRecipe.id);
-                        const recipePreprocessing = newPreprocessing.filter(prep => prep.recipe_id === correspondingNewRecipe.id);
-                        const recipeSteps = newSteps.filter(step => step.recipe_id === correspondingNewRecipe.id);
-                        
-                        finalIngredients.push(...recipeIngredients);
-                        finalPreprocessing.push(...recipePreprocessing);
-                        finalSteps.push(...recipeSteps);
-                    }
-                } else {
-                    // This slot was not selected - find the corresponding unselected recipe
-                    const originalRecipe = localRecipes[i];
-                    if (originalRecipe && !originalRecipe.id.startsWith('00000000-0000-0000-0000-skeleton')) {
-                        finalRecipes[i] = originalRecipe;
-                        
-                        // Add related data for this unselected recipe
-                        const recipeIngredients = unselectedIngredients.filter(ing => ing.recipe_id === originalRecipe.id);
-                        const recipePreprocessing = unselectedPreprocessing.filter(prep => prep.recipe_id === originalRecipe.id);
-                        const recipeSteps = unselectedSteps.filter(step => step.recipe_id === originalRecipe.id);
-                        
-                        finalIngredients.push(...recipeIngredients);
-                        finalPreprocessing.push(...recipePreprocessing);
-                        finalSteps.push(...recipeSteps);
-                    }
-                }
-            }
-
-            // Filter out any undefined slots and flatten
-            const validFinalRecipes = finalRecipes.filter(Boolean);
-
-            console.log('📊 [REROLLSELECTED] Final state building details:', {
-                selectedIndices: selectedIndices,
-                originalSelectedRecipeIds: Array.from(originalSelectedRecipeIds),
-                unselectedRecipesCount: unselectedRecipes.length,
-                unselectedRecipeIds: unselectedRecipes.map(r => r.id),
-                newRecipesCount: newRecipes.length,
-                newRecipeIds: newRecipes.map(r => r.id),
-                finalRecipesCount: validFinalRecipes.length,
-                finalRecipeIds: validFinalRecipes.map(r => r.id),
-                preservedOrder: finalRecipes.map((r, i) => `${i}: ${r?.id || 'empty'}`)
-            });
-
-            console.log('📊 [REROLLSELECTED] Complete final state for DB commit:', {
-                finalRecipesCount: validFinalRecipes.length,
-                finalIngredientsCount: finalIngredients.length,
-                finalPreprocessingCount: finalPreprocessing.length,
-                finalStepsCount: finalSteps.length,
-                recipeIds: validFinalRecipes.map(r => r.id)
-            });
-
-            // Update local state immediately with the final state to avoid temporary 0 counts
-            setLocalRecipes(validFinalRecipes);
-            setLocalIngredients(finalIngredients);
-            setLocalPreprocessing(finalPreprocessing);
-            setLocalSteps(finalSteps);
-
-            // Commit the complete final state to the DB with smart insert logic
-            await commitCollectedDataToDatabaseSmart(validFinalRecipes, finalIngredients, finalPreprocessing, finalSteps);
-
-            // Update wallet after all recipes are completed
-            await onWalletUpdate(selectedIndices.length * 0.03, selectedIndices.length);
-            
-            setCustomCuisine("...");
-            setSelectedRerollCuisines(mealPlan.cuisines);
-        } catch (error) {
-            console.error(error instanceof Error ? error.message : 'Failed to reroll selected recipes');
-            console.error('Error rerolling selected recipes:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     return (
         <>
-            <div className="flex">
-                <div className="flex w-1/3 flex-col gap-4">
-                    <p className="text-2xl">Total Daily Energy Expenditure (TDEE):&nbsp;{tdee}</p>
-                    <p className="text-2xl">Daily Target:&nbsp;{tdee + offset}</p>
-                    <p className="text-2xl">Protein Target:&nbsp;{protein}g</p>
-                    <p className="text-2xl">Fat Target:&nbsp;{fat}g</p>
+            {/* Nutrition Stats - Mobile First */}
+            <div className="flex flex-col md:flex-row gap-4 md:gap-0">
+                <div className="flex flex-col gap-2 md:w-1/3">
+                    <p className="text-lg md:text-2xl">Total Daily Energy Expenditure (TDEE):&nbsp;{tdee}</p>
+                    <p className="text-lg md:text-2xl">Daily Target:&nbsp;{tdee + offset}</p>
+                    <p className="text-lg md:text-2xl">Protein Target:&nbsp;{protein}g</p>
+                    <p className="text-lg md:text-2xl">Fat Target:&nbsp;{fat}g</p>
                 </div>
                 <div className="flex-auto"></div>
-                <div className="flex w-1/3 flex-col gap-4">
-                    <p className="text-2xl">Daily Snack :D :&nbsp;{dailySnackCalories}</p>
-                    <p className="text-2xl">Daily Breakfast Calories:&nbsp;{dailyBreakfastCalories}</p>
-                    <p className="text-2xl">Daily Breakfast Protein:&nbsp;{dailyBreakfastProtein}g</p>
-                    <p className="text-2xl">Daily Breakfast Fat:&nbsp;{dailyBreakfastFat}g</p>
+                <div className="flex flex-col gap-2 md:w-1/3">
+                    <p className="text-lg md:text-2xl">Daily Snack :D :&nbsp;{dailySnackCalories}</p>
+                    <p className="text-lg md:text-2xl">Daily Breakfast Calories:&nbsp;{dailyBreakfastCalories}</p>
+                    <p className="text-lg md:text-2xl">Daily Breakfast Protein:&nbsp;{dailyBreakfastProtein}g</p>
+                    <p className="text-lg md:text-2xl">Daily Breakfast Fat:&nbsp;{dailyBreakfastFat}g</p>
                 </div>
                 <div className="flex-auto"></div>
             </div>    
+            
+            {/* No Recipes State */}
             {localRecipes.length === 0 && !isLoading && (
-                <div className="flex min-h-[800px] items-center justify-center">
+                <div className="flex min-h-[400px] md:min-h-[800px] items-center justify-center">
                     <div
                         onClick={() => {
                             rollRecipes(
@@ -1101,141 +736,219 @@ export default function QuantitativeNutrition(props: {
                                 protein - dailyBreakfastProtein,
                                 fat - dailyBreakfastFat)
                         }}
-                        className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`border-4 border-current rounded-xl cursor-pointer text-xl md:text-2xl w-fit ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                         aria-disabled={isLoading}
                     >
                         <p>&nbsp;{isLoading ? 'Generating meal plan...' : 'Generate a meal plan!'}&nbsp;</p>
                     </div>
                 </div>
             )}
+            
+            {/* Recipes Section */}
             {(isLoading || localRecipes.length > 0) && (
-                <div className="flex flex-col gap-4 pt-20">
-                    {/* First row: Cuisine selection, recipe selection, and reroll selected */}
-                    <div className="flex items-start w-full gap-4 mb-4">
-                        <div className="flex items-baseline text-2xl w-1/3 gap-4">
-                            <div className="min-w-[225px] whitespace-nowrap">Selected cuisines:&nbsp;&nbsp;</div>
-                            <BubbleInput
-                                currentPreferences={selectedRerollCuisines}
-                                limitPreferences={4}
-                            />
-                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ml-4"
-                                onClick={() => setIsCuisinePopupOpen(true)}
-                            >
-                                <span>&nbsp;Change&nbsp;</span>
+                <div className="flex flex-col gap-4 pt-10 md:pt-20">
+                    {/* Controls Section - Mobile First */}
+                    <div className="space-y-4">
+                        {/* Mobile Layout */}
+                        <div className="flex flex-col md:hidden space-y-4">
+                            {/* Action Buttons */}
+                            <div className="flex flex-wrap gap-2">
+                                <div className="border-4 border-current rounded-xl cursor-pointer text-lg w-fit"
+                                    onClick={toggleShoppingList}
+                                >
+                                    <p>&nbsp;Shopping List&nbsp;</p>
+                                </div>
+                                <div className="border-4 border-current rounded-xl cursor-pointer text-lg w-fit"
+                                    onClick={togglePreprocessing}
+                                >
+                                    <p>&nbsp;Preprocessing&nbsp;</p>
+                                </div>
+                                <button
+                                    onClick={() => {
+                                        setRerollMode('selected');
+                                        setIsRerollModalOpen(true);
+                                    }}
+                                    className="border-4 border-current rounded-xl cursor-pointer text-lg w-fit"
+                                >
+                                    <span>&nbsp;Reroll Selected&nbsp;</span>
+                                </button>
+                                <div 
+                                    className={`border-4 border-current rounded-xl cursor-pointer text-lg w-fit ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    onClick={() => {
+                                        if (!isLoading) {
+                                            setRerollMode('all');
+                                            setIsRerollModalOpen(true);
+                                        }
+                                    }}
+                                    aria-disabled={isLoading}
+                                >
+                                    <p>&nbsp;Re-roll All&nbsp;</p>
+                                </div>
                             </div>
-                            {isCuisinePopupOpen && (
-                                                            <CuisineInput
-                                cuisineSet={selectedRerollCuisines}
-                                searchSet={searchSet.searchSet}
-                                closeCuisineSearch={(cuisines) => {
-                                    // Ensure we always have at least the default meal plan cuisines
-                                    const finalCuisines = cuisines.length > 0 ? cuisines : mealPlan.cuisines.slice(0, 4);
-                                    setSelectedRerollCuisines(finalCuisines);
-                                    setCustomCuisine(finalCuisines.length > 0 ? finalCuisines[0] : "...");
-                                    setIsCuisinePopupOpen(false);
-                                    console.log('🍜 [CUISINE UPDATE] Selected reroll cuisines updated to:', finalCuisines);
-                                }}
-                            />
-                            )}
                         </div>
-                        <div className="flex-auto"></div>
-                        <div className="flex gap-4 items-center ml-auto whitespace-nowrap">
-                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
-                                onClick={selectAllRecipes}
-                            >
-                                <span>&nbsp;Select All&nbsp;</span>
+
+                        {/* Desktop Layout - Keep original structure */}
+                        <div className="hidden md:block">
+                            {/* First row: Cuisine selection and navigation */}
+                            <div className="flex items-start w-full gap-4 mb-4">
+                                <div className="flex items-baseline text-2xl w-1/3 gap-4">
+                                    <div className="min-w-[225px] whitespace-nowrap">Selected cuisines:&nbsp;&nbsp;</div>
+                                    <BubbleInput
+                                        currentPreferences={selectedRerollCuisines}
+                                        limitPreferences={4}
+                                    />
+                                    <div className="border md:border-4 border-current rounded-md md:rounded-xl cursor-pointer text-sm md:text-2xl w-fit ml-4"
+                                        onClick={() => setIsCuisinePopupOpen(true)}
+                                    >
+                                        <span className="px-2 py-0.5 md:px-3 md:py-1">Change</span>
+                                    </div>
+                                    {isCuisinePopupOpen && (
+                                        <CuisineInput
+                                            cuisineSet={selectedRerollCuisines}
+                                            searchSet={searchSet.searchSet}
+                                            closeCuisineSearch={(cuisines) => {
+                                                const finalCuisines = cuisines.length > 0 ? cuisines : mealPlan.cuisines.slice(0, 4);
+                                                setSelectedRerollCuisines(finalCuisines);
+                                                setCustomCuisine(finalCuisines.length > 0 ? finalCuisines[0] : "...");
+                                                setIsCuisinePopupOpen(false);
+                                                console.log('🍜 [CUISINE UPDATE] Selected reroll cuisines updated to:', finalCuisines);
+                                            }}
+                                        />
+                                    )}
+                                </div>
+                                <div className="flex-auto"></div>
+                                <div className="flex gap-4 items-center ml-auto whitespace-nowrap">
+                                    <button
+                                        onClick={() => {
+                                            setRerollMode('selected');
+                                            setIsRerollModalOpen(true);
+                                        }}
+                                        className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                                    >
+                                        <span>&nbsp;Reroll Selected&nbsp;</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
-                                onClick={deselectAllRecipes}
-                            >
-                                <span>&nbsp;Deselect All&nbsp;</span>
+
+                            {/* Second row: Shopping list, preprocessing, and reroll all */}
+                            <div className="flex gap-4">
+                                <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                                    onClick={toggleShoppingList}
+                                >
+                                    <p>&nbsp;Shopping List&nbsp;</p>
+                                </div>
+                                <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                                    onClick={togglePreprocessing}
+                                >
+                                    <p>&nbsp;Preprocessing&nbsp;</p>
+                                </div>
+                                <div className="flex-auto"></div>
+                                <div 
+                                    className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    onClick={() => {
+                                        if (!isLoading) {
+                                            setRerollMode('all');
+                                            setIsRerollModalOpen(true);
+                                        }
+                                    }}
+                                    aria-disabled={isLoading}
+                                >
+                                    <p>&nbsp;Re-roll All&nbsp;</p>
+                                </div>
                             </div>
-                            <span className="text-xl text-gray-600">
-                                Selected: {selectedRecipes.size} of {localRecipes.length} recipes
-                            </span>
-                            <button
-                                className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ml-4 ${isLoading || selectedRecipes.size === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                onClick={() => {
-                                    if (!isLoading && selectedRecipes.size > 0) {
-                                        rerollSelectedRecipes();
-                                    }
-                                }}
-                                aria-disabled={isLoading || selectedRecipes.size === 0}
-                            >
-                                <span>&nbsp;Re-roll Selected ({selectedRecipes.size})&nbsp;</span>
-                            </button>
                         </div>
+
+                        {/* Shopping List and Preprocessing Popups */}
+                        {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={aggregateShoppingList(localIngredients)} onToggleAllInstances={toggleAllInstances} />}
+                        {isPreprocessingOpen && <PreprocessingList closePreprocessingList={closePreprocessingList} preprocessing={aggregatePreprocessingList(localPreprocessing)} onToggleAllPreprocessingInstances={toggleAllPreprocessingInstances} />}
                     </div>
 
-                    {/* Second row: Shopping list, preprocessing, and reroll all */}
-                    <div className="flex gap-4">
-                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
-                            onClick={toggleShoppingList}
-                        >
-                            <p>&nbsp;Shopping List&nbsp;</p>
+                    {/* Recipe Display Section */}
+                    <div className="space-y-4">
+                        {/* Mobile Recipe Tabs */}
+                        <div className="md:hidden">
+                            {localRecipes.length > 0 && (
+                                <>
+                                    {/* Tab Navigation */}
+                                    <div className="flex overflow-x-auto gap-1 mb-4 border-b-4 border-current pb-2">
+                                        {localRecipes.map((recipe, index) => (
+                                            <button
+                                                key={recipe.id || index}
+                                                onClick={() => setActiveRecipeTab(index)}
+                                                className={`flex-shrink-0 px-4 py-2 border-4 border-current rounded-lg text-lg font-medium transition-colors ${
+                                                    activeRecipeTab === index 
+                                                        ? 'bg-current text-white' 
+                                                        : 'bg-white text-current hover:bg-gray-100'
+                                                }`}
+                                            >
+                                                Recipe {index + 1}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Active Recipe Content */}
+                                    {localRecipes[activeRecipeTab] && (
+                                        <div className="border-4 border-current rounded-xl p-4">
+                                            <RecipeDisplay 
+                                                key={localRecipes[activeRecipeTab].id} 
+                                                recipe={localRecipes[activeRecipeTab]} 
+                                                ingredients={localIngredients} 
+                                                preprocessing={localPreprocessing} 
+                                                steps={localSteps} 
+                                                recipesDetails={localRecipes} 
+                                                onUpdatePreprocessing={onUpdatePreprocessing} 
+                                                onUpdateSteps={onUpdateSteps} 
+                                                onUpdateShoppingList={onUpdateShoppingList}
+                                                onUpdateOverallShoppingList={updateOverallShoppingList}
+                                                onUpdateOverallPreprocessingList={updateOverallPreprocessingList}
+                                                onSyncIndividualRecipeUpdate={syncIndividualRecipeUpdate}
+                                                isSelected={false}
+                                                onToggleSelection={() => {}}
+                                            />
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </div>
-                        {isShoppingListOpen && <ShoppingList closeShoppingList={closeShoppingList} ingredients={aggregateShoppingList(localIngredients)} onToggleAllInstances={toggleAllInstances} />}
-                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
-                            onClick={togglePreprocessing}
-                        >
-                            <p>&nbsp;Preprocessing&nbsp;</p>
+
+                        {/* Desktop Recipe Grid */}
+                        <div className="hidden md:block">
+                            <div className="flex flex-col gap-4">
+                                {localRecipes.map((recipe) => {
+                                    if (!recipe || !recipe.id) {
+                                        return null;
+                                    }
+                                    
+                                    return (
+                                        <RecipeDisplay 
+                                            key={recipe.id} 
+                                            recipe={recipe} 
+                                            ingredients={localIngredients} 
+                                            preprocessing={localPreprocessing} 
+                                            steps={localSteps} 
+                                            recipesDetails={localRecipes} 
+                                            onUpdatePreprocessing={onUpdatePreprocessing} 
+                                            onUpdateSteps={onUpdateSteps} 
+                                            onUpdateShoppingList={onUpdateShoppingList}
+                                            onUpdateOverallShoppingList={updateOverallShoppingList}
+                                            onUpdateOverallPreprocessingList={updateOverallPreprocessingList}
+                                            onSyncIndividualRecipeUpdate={syncIndividualRecipeUpdate}
+                                            isSelected={false}
+                                            onToggleSelection={() => {}}
+                                        />
+                                    );
+                                })}
+                            </div>
                         </div>
-                        {isPreprocessingOpen && <PreprocessingList closePreprocessingList={closePreprocessingList} preprocessing={aggregatePreprocessingList(localPreprocessing)} onToggleAllPreprocessingInstances={toggleAllPreprocessingInstances} />}
-                        <div className="flex-auto"></div>
-                        <div 
-                            className={`border-4 border-current rounded-xl cursor-pointer text-2xl w-fit ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            onClick={() => {
-                                if (!isLoading) {
-                                    console.log('Re-rolling all recipes');
-                                    rollRecipes(
-                                        tdee + offset - dailySnackCalories - dailyBreakfastCalories, 
-                                        protein - dailyBreakfastProtein, 
-                                        fat - dailyBreakfastFat);
-                                    // setIsShoppingListOpen(true);
-                                }
-                            }}
-                            aria-disabled={isLoading}
-                        >
-                            <p>&nbsp;Re-roll All&nbsp;</p>
-                        </div>
-                    </div>
-                    <div className="flex flex-col gap-4">
-                        {/* Placeholders removed - using skeleton recipes in local state instead */}
-                        {/* Show actual recipes (including skeleton recipes during loading) */}
-                        {localRecipes.map((recipe, index) => {
-                            // Skip rendering if recipe is undefined or invalid
-                            if (!recipe || !recipe.id) {
-                                return null;
-                            }
-                            
-                            return (
-                                <RecipeDisplay 
-                                    key={recipe.id} 
-                                    recipe={recipe} 
-                                    ingredients={localIngredients} 
-                                    preprocessing={localPreprocessing} 
-                                    steps={localSteps} 
-                                    recipesDetails={localRecipes} 
-                                    onUpdatePreprocessing={onUpdatePreprocessing} 
-                                    onUpdateSteps={onUpdateSteps} 
-                                    onUpdateShoppingList={onUpdateShoppingList}
-                                    onUpdateOverallShoppingList={updateOverallShoppingList}
-                                    onUpdateOverallPreprocessingList={updateOverallPreprocessingList}
-                                    onSyncIndividualRecipeUpdate={syncIndividualRecipeUpdate}
-                                    isSelected={selectedRecipes.has(index)}
-                                    onToggleSelection={() => toggleRecipeSelection(index)}
-                                />
-                            );
-                        })}
                     </div>
                 </div>
             )}
 
             {/* Insufficient Balance Dialog */}
             {isInsufficientBalanceOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl p-6 max-w-md mx-4 border-4 border-current">
-                        <div className="flex justify-between items-start mb-4">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl max-w-md w-full border-4 border-current">
+                        <div className="flex justify-between items-start mb-4 p-6 pb-0">
                             <h3 className="text-2xl font-bold">Insufficient Balance</h3>
                             <button
                                 onClick={() => setIsInsufficientBalanceOpen(false)}
@@ -1244,7 +957,7 @@ export default function QuantitativeNutrition(props: {
                                 ×
                             </button>
                         </div>
-                        <div className="space-y-4 text-lg">
+                        <div className="space-y-4 text-lg p-6">
                             <p>
                                 You don&apos;t have enough balance to perform this operation.
                             </p>
@@ -1256,7 +969,7 @@ export default function QuantitativeNutrition(props: {
                                 Please top up your wallet to continue generating recipes.
                             </p>
                         </div>
-                        <div className="mt-6 flex justify-end">
+                        <div className="p-6 pt-0 flex justify-end">
                             <button
                                 onClick={() => setIsInsufficientBalanceOpen(false)}
                                 className="border-2 border-current rounded-lg cursor-pointer text-xl px-4 py-2 hover:bg-[#B1454A] hover:text-white transition-colors"
@@ -1267,6 +980,15 @@ export default function QuantitativeNutrition(props: {
                     </div>
                 </div>
             )}
+
+            {/* Reroll Selection Modal */}
+            <RerollSelectionModal
+                isOpen={isRerollModalOpen}
+                recipes={localRecipes}
+                mode={rerollMode}
+                onClose={() => setIsRerollModalOpen(false)}
+                onConfirm={handleRerollConfirm}
+            />
         </>
     );
 }

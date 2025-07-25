@@ -62,18 +62,18 @@ export default function UserWallet({ wallet, onWalletRefresh }: UserWalletProps)
     return (
         <div className="flex-1">
             <div className="flex flex-col gap-4">
-                <div className="flex justify-between">
-                    <p className="text-2xl">Wallet Balance:&nbsp;${balance.toFixed(2)}</p>
-                    <p className="text-2xl">Requests Made:&nbsp;{wallet.requests_made}</p>
+                <div className="flex flex-col md:flex-row md:justify-between gap-2 md:gap-0">
+                    <p className="text-lg md:text-2xl">Wallet Balance:&nbsp;${balance.toFixed(2)}</p>
+                    <p className="text-lg md:text-2xl">Requests Made:&nbsp;{wallet.requests_made}</p>
                 </div>
                 
-                <div className="flex items-center gap-4">
-                    <p className="text-2xl">Top up options:&nbsp;</p>
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                    <p className="text-lg md:text-2xl">Top up options:&nbsp;</p>
                     <div className="flex gap-2">
                         <button
                             onClick={() => handleTopUp(2)}
                             disabled={isLoading}
-                            className={`border-2 border-current rounded-lg cursor-pointer text-2xl px-3 py-1 transition-colors ${
+                            className={`border-2 border-current rounded-lg cursor-pointer text-lg md:text-2xl px-3 py-1 transition-colors ${
                                 isLoading 
                                     ? 'opacity-50 cursor-not-allowed' 
                                     : 'hover:bg-[#B1454A] hover:text-white'
@@ -84,7 +84,7 @@ export default function UserWallet({ wallet, onWalletRefresh }: UserWalletProps)
                         <button
                             onClick={() => handleTopUp(5)}
                             disabled={isLoading}
-                            className={`border-2 border-current rounded-lg cursor-pointer text-2xl px-3 py-1 transition-colors ${
+                            className={`border-2 border-current rounded-lg cursor-pointer text-lg md:text-2xl px-3 py-1 transition-colors ${
                                 isLoading 
                                     ? 'opacity-50 cursor-not-allowed' 
                                     : 'hover:bg-[#B1454A] hover:text-white'
@@ -95,7 +95,7 @@ export default function UserWallet({ wallet, onWalletRefresh }: UserWalletProps)
                         <button
                             onClick={() => handleTopUp(10)}
                             disabled={isLoading}
-                            className={`border-2 border-current rounded-lg cursor-pointer text-2xl px-3 py-1 transition-colors ${
+                            className={`border-2 border-current rounded-lg cursor-pointer text-lg md:text-2xl px-3 py-1 transition-colors ${
                                 isLoading 
                                     ? 'opacity-50 cursor-not-allowed' 
                                     : 'hover:bg-[#B1454A] hover:text-white'
@@ -107,7 +107,7 @@ export default function UserWallet({ wallet, onWalletRefresh }: UserWalletProps)
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setIsInfoDialogOpen(true)}
-                            className="text-2xl border-2 border-current rounded-full w-8 h-8 flex items-center justify-center cursor-pointer hover:bg-[#B1454A] hover:text-white transition-colors"
+                            className="text-lg md:text-2xl border-2 border-current rounded-full w-8 h-8 flex items-center justify-center cursor-pointer hover:bg-[#B1454A] hover:text-white transition-colors"
                             title="Learn more about API costs"
                         >
                             i
@@ -118,18 +118,18 @@ export default function UserWallet({ wallet, onWalletRefresh }: UserWalletProps)
 
             {/* Info Dialog */}
             {isInfoDialogOpen && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-xl p-6 max-w-md mx-4 border-4 border-current">
-                        <div className="flex justify-between items-start mb-4">
-                            <h3 className="text-2xl font-bold">API Request Costs</h3>
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl max-w-md w-full border-4 border-current">
+                        <div className="flex justify-between items-start mb-4 p-6 pb-0">
+                            <h3 className="text-xl md:text-2xl font-bold">API Request Costs</h3>
                             <button
                                 onClick={() => setIsInfoDialogOpen(false)}
-                                className="text-2xl border-2 border-current rounded-full w-8 h-8 flex items-center justify-center cursor-pointer hover:bg-[#B1454A] hover:text-white transition-colors"
+                                className="text-xl md:text-2xl border-2 border-current rounded-full w-8 h-8 flex items-center justify-center cursor-pointer hover:bg-[#B1454A] hover:text-white transition-colors"
                             >
                                 ×
                             </button>
                         </div>
-                        <div className="space-y-4 text-lg">
+                        <div className="space-y-4 text-base md:text-lg p-6">
                             <p>
                                 Each API request to generate recipes and meal plans incurs a cost. 
                                 Your wallet balance covers these expenses.
@@ -145,10 +145,10 @@ export default function UserWallet({ wallet, onWalletRefresh }: UserWalletProps)
                                 <strong>Requests made:</strong> {wallet.requests_made}
                             </p>
                         </div>
-                        <div className="mt-6 flex justify-end">
+                        <div className="mt-6 flex justify-end p-6 pt-0">
                             <button
                                 onClick={() => setIsInfoDialogOpen(false)}
-                                className="border-2 border-current rounded-lg cursor-pointer text-xl px-4 py-2 hover:bg-[#B1454A] hover:text-white transition-colors"
+                                className="border-2 border-current rounded-lg cursor-pointer text-lg md:text-xl px-4 py-2 hover:bg-[#B1454A] hover:text-white transition-colors"
                             >
                                 Got it
                             </button>
