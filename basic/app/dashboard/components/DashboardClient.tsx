@@ -1,13 +1,12 @@
 'use client'
 
 import { useState } from "react";
-import UserDetails from "./UserDetails";
-import GoalDetails from "./GoalDetails";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
 import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, updateMultipleRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateMultipleSteps, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes, getWallet, signOutUser, deleteAccount, updateUserName } from "../actions";
 import InlineInput from "./InlineInput";
+import ToggleInput from "./ToggleInput";
 
 export default function DashboardClient({ 
     initialUserDetails,
@@ -283,47 +282,174 @@ export default function DashboardClient({
 
     return (
         <div className="flex flex-col">
+            {/* First Row - Specific alignments */}
             <div className="px-10 pt-10 pb-5 flex">
-                <div className="flex-auto flex items-center">
-                    <span className="text-2xl mr-2">Hello</span>
-                    <div className="text-2xl">
-                        <InlineInput 
-                            text={userDetails.name} 
-                            onSetText={handleUsernameUpdate} 
-                        />
+                {/* Left half - Username left, Gender & Height right */}
+                <div className="flex flex-1 gap-4 mr-8">
+                    <div className="flex items-center">
+                        <span className="text-2xl mr-2">Hello</span>
+                        <div className="text-2xl">
+                            <InlineInput
+                                text={userDetails.name}
+                                onSetText={handleUsernameUpdate}
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1"></div>
+                    
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-baseline h-10">
+                            <span className="min-w-[80px] text-2xl">Gender:&nbsp;</span>
+                            <div className="flex items-baseline text-2xl">
+                                <ToggleInput 
+                                    altValues={["Male", "Female"]}
+                                    valIdx={["Male", "Female"].indexOf(userDetails.gender)}
+                                    onSetText={(text: string) => handleUserUpdate({ gender: text })} 
+                                />
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-baseline h-10">
+                            <span className="min-w-[80px] text-2xl">Height:&nbsp;</span>
+                            <div className="flex items-baseline text-2xl">
+                                <InlineInput 
+                                    text={String(userDetails.height)} 
+                                    onSetText={(text: string) => handleUserUpdate({ height: Number(text) })} 
+                                />
+                                <span className="text-2xl ml-1">
+                                    <ToggleInput 
+                                        altValues={["cm", "ft"]} 
+                                        valIdx={["cm", "ft"].indexOf(heightUnit)}
+                                        onSetText={setHeightUnit}
+                                    />
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-4 mr-4">
-                    <button
-                        onClick={handleSignOut}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                    >
-                        Sign Out
-                    </button>
-                    <button
-                        onClick={handleDeleteAccount}
-                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
-                    >
-                        Delete Account
-                    </button>
+                
+                {/* Right half - Weight & Age left, Sign Out & Delete Account right */}
+                <div className="flex w-1/2 gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-baseline h-10">
+                            <span className="min-w-[80px] text-2xl">Weight:&nbsp;</span>
+                            <div className="flex items-baseline text-2xl">
+                                <InlineInput 
+                                    text={String(userDetails.weight)} 
+                                    onSetText={(text: string) => handleUserUpdate({ weight: Number(text) })} 
+                                />
+                                <span className="text-2xl ml-1">
+                                    <ToggleInput 
+                                        altValues={["kg", "lbs"]} 
+                                        valIdx={["kg", "lbs"].indexOf(weightUnit)}
+                                        onSetText={setWeightUnit}
+                                    />
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-baseline h-10">
+                            <span className="min-w-[60px] text-2xl">Age:&nbsp;</span>
+                            <div className="flex items-baseline text-2xl">
+                                <InlineInput
+                                    text={String(userDetails.age)}
+                                    onSetText={(text: string) => handleUserUpdate({ age: Number(text) })}
+                                />
+                                <span className="text-2xl ml-1">yrs</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1"></div>
+                    
+                    <div className="flex items-center gap-4">
+                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                            onClick={handleSignOut}
+                        >
+                            <p>&nbsp;Sign Out&nbsp;</p>
+                        </div>
+                        <div className="border-4 border-current rounded-xl cursor-pointer text-2xl w-fit"
+                            onClick={handleDeleteAccount}
+                        >
+                            <p>&nbsp;Delete Account&nbsp;</p>
+                        </div>
+                    </div>
                 </div>
-                <UserDetails 
-                    userDetails={userDetails}
-                    heightUnit={heightUnit}
-                    weightUnit={weightUnit}
-                    setHeightUnit={setHeightUnit}
-                    setWeightUnit={setWeightUnit}
-                    onUpdate={handleUserUpdate}
-                />
             </div>
-            <div className="px-10 flex">
-                <p className="flex-auto"></p>
-                <GoalDetails 
-                    goalDetails={goalDetails}
-                    activityLevel={activityLevel}
-                    setActivityLevel={setActivityLevel}
-                    onUpdate={handleGoalUpdate}
-                />
+            
+            {/* Second Row - Goal & Diet right on left half, Lacto-Ovo & Activity left on right half */}
+            <div className="px-10 pb-5 flex">
+                {/* Left half - Goal & Diet right aligned */}
+                <div className="flex flex-1 gap-4 justify-end mr-8">
+                    <div className="flex-shrink-0">
+                        <div className="flex items-baseline h-10">
+                            <span className="min-w-[60px] text-2xl">Goal:&nbsp;</span>
+                            <div className="flex items-baseline text-2xl">
+                                <ToggleInput
+                                    altValues={["Bulk", "Shred", "Recomp"]}
+                                    valIdx={["Bulk", "Shred", "Recomp"].indexOf(goalDetails.goal)}
+                                    onSetText={(text: string) => handleGoalUpdate({ goal: text })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex-shrink-0">
+                        <div className="flex items-baseline h-10">
+                            <span className="min-w-[60px] text-2xl">Diet:&nbsp;</span>
+                            <div className="flex items-baseline text-2xl">
+                                <ToggleInput
+                                    altValues={["Vegetarian", "Non-Vegetarian", "Vegan", "Pescatarian", "Flexitarian", "Macrobiotic"]}
+                                    valIdx={["Vegetarian", "Non-Vegetarian", "Vegan", "Pescatarian", "Flexitarian", "Macrobiotic"].indexOf(goalDetails.diet)}
+                                    onSetText={(text: string) => handleGoalUpdate({ diet: text })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Right half - Lacto-Ovo & Activity left aligned */}
+                <div className="flex w-1/2 gap-4">
+                    <div className="flex-shrink-0">
+                        <div className="flex items-baseline h-10">
+                            <span className="min-w-[100px] text-2xl">Lacto-Ovo:&nbsp;</span>
+                            <div className="flex items-baseline text-2xl">
+                                <ToggleInput
+                                    altValues={["Dairy only", "Eggs only", "Dairy + Eggs", "No Eggs, No Dairy"]}
+                                    valIdx={(() => {
+                                        const idx = ["Dairy only", "Eggs only", "Dairy + Eggs", "No Eggs, No Dairy"].indexOf(goalDetails.lacto_ovo);
+                                        return idx >= 0 ? idx : 0;
+                                    })()}
+                                    onSetText={(text: string) => handleGoalUpdate({ lacto_ovo: text })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex-shrink-0">
+                        <div className="flex items-baseline h-10">
+                            <span className="min-w-[120px] text-2xl">Activity Level:&nbsp;</span>
+                            <div className="flex items-baseline text-2xl">
+                                <ToggleInput
+                                    altValues={["Sedentary", "Light", "Moderate", "Very", "Extra"]}
+                                    valIdx={["Sedentary", "Light", "Moderate", "Very", "Extra"].indexOf(activityLevel)}
+                                    onSetText={(text: string) => {
+                                        setActivityLevel(text);
+                                        const activity_level_conversion: {[id: string]: number} = {
+                                            "Sedentary": 1.2,
+                                            "Light": 1.375, 
+                                            "Moderate": 1.55,
+                                            "Very": 1.725,
+                                            "Extra": 1.9
+                                        };
+                                        handleGoalUpdate({ activity_level: activity_level_conversion[text] });
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div className="flex p-10 flex-col">
                 <p className="flex flex-auto text-2xl pb-10">Meal Plan</p>

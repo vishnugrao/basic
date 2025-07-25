@@ -18,8 +18,8 @@ export default function GoalDetails({
     onUpdate
 }: GoalDetailsProps) {
     return(
-        <div className="flex w-2/3 gap-4">
-            <div className="flex-1">
+        <div className="flex w-full gap-8 justify-center">
+            <div className="flex-shrink-0">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[60px] text-2xl">Goal:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
@@ -32,7 +32,7 @@ export default function GoalDetails({
                 </div>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-shrink-0">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[60px] text-2xl">Diet:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
@@ -45,9 +45,9 @@ export default function GoalDetails({
                 </div>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-shrink-0">
                 <div className="flex items-baseline h-10">
-                    <span className="min-w-[80px] text-2xl">Lacto-Ovo:&nbsp;</span>
+                    <span className="min-w-[100px] text-2xl">Lacto-Ovo:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput
                             altValues={["Dairy only", "Eggs only", "Dairy + Eggs", "No Eggs, No Dairy"]}
@@ -61,9 +61,9 @@ export default function GoalDetails({
                 </div>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-shrink-0">
                 <div className="flex items-baseline h-10">
-                    <span className="min-w-[80px] text-2xl">Activity Level:&nbsp;</span>
+                    <span className="min-w-[120px] text-2xl">Activity Level:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
                         <ToggleInput
                             altValues={["Sedentary", "Light", "Moderate", "Very", "Extra"]}
