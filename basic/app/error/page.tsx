@@ -2,12 +2,40 @@
 
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default function ErrorPage() {
+function ErrorContent() {
     const searchParams = useSearchParams()
     const error = searchParams?.get('error')
     const description = searchParams?.get('error_description')
     
+    return (
+        <>
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
+                    <h3 className="text-sm font-medium text-red-800 mb-1">Error Details:</h3>
+                    <p className="text-sm text-red-700 mb-2">Type: {error}</p>
+                    {description && (
+                        <p className="text-sm text-red-700">Description: {description}</p>
+                    )}
+                </div>
+            )}
+        </>
+    )
+}
+
+function ErrorFallback() {
+    return (
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+            <div className="animate-pulse">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+        </div>
+    )
+}
+
+export default function ErrorPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-[#F5F5F1] px-4">
             <div className="w-full max-w-md">
@@ -26,15 +54,9 @@ export default function ErrorPage() {
                         We encountered an error while processing your request.
                     </p>
                     
-                    {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
-                            <h3 className="text-sm font-medium text-red-800 mb-1">Error Details:</h3>
-                            <p className="text-sm text-red-700 mb-2">Type: {error}</p>
-                            {description && (
-                                <p className="text-sm text-red-700">Description: {description}</p>
-                            )}
-                        </div>
-                    )}
+                    <Suspense fallback={<ErrorFallback />}>
+                        <ErrorContent />
+                    </Suspense>
                     
                     <div className="space-y-3">
                         <Link 
