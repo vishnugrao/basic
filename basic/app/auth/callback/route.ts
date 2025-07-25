@@ -6,15 +6,44 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     
+    console.log('🔵 [AUTH_CALLBACK] Callback route accessed')
+    console.log('🔵 [AUTH_CALLBACK] Search params:', Object.fromEntries(searchParams.entries()))
+    console.log('🔵 [AUTH_CALLBACK] Code present:', !!code)
+    
     // Helper function to create proper redirect URLs
     const createRedirectUrl = (path: string) => {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.url
-        return new URL(path, siteUrl)
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
+        if (!siteUrl) {
+            console.error('❌ [AUTH_CALLBACK] NEXT_PUBLIC_SITE_URL not set, using request.url')
+        }
+        console.log('🔵 [AUTH_CALLBACK] Redirecting to:', `${siteUrl || request.url}${path}`)
+        return new URL(path, siteUrl || request.url)
     }
 
     if (code) {
+        console.log('🔵 [AUTH_CALLBACK] Processing OAuth code:', code.substring(0, 8) + '...')
         const supabase = await createClient()
+        
+        // Check if user is already authenticated before trying to exchange code
+        const { data: { user: existingUser } } = await supabase.auth.getUser()
+        if (existingUser) {
+            console.log('✅ [AUTH_CALLBACK] User already authenticated, redirecting to dashboard')
+            return NextResponse.redirect(createRedirectUrl('/dashboard'))
+        }
+        
         const { error } = await supabase.auth.exchangeCodeForSession(code)
+        
+        if (error) {
+            console.error('❌ [AUTH_CALLBACK] Code exchange failed:', {
+                message: error.message,
+                status: error.status,
+                name: error.name,
+                cause: error.cause
+            })
+            return NextResponse.redirect(createRedirectUrl(`/error?error=CodeExchangeFailed&error_description=${encodeURIComponent(error.message)}`))
+        }
+        
+        console.log('✅ [AUTH_CALLBACK] Code exchange successful')
         
         if (!error) {
             try {
@@ -150,5 +179,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Return the user to an error page with instructions
+    console.error('❌ [AUTH_CALLBACK] No code provided or auth flow failed')
     return NextResponse.redirect(createRedirectUrl('/error?error=AuthCallbackFailed&error_description=Failed to authenticate with Google'))
 } 
