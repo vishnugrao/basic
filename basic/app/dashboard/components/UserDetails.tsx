@@ -23,8 +23,8 @@ export default function UserDetails({
     onUpdate 
 }: UserDetailsProps) {
     return (
-        <div className="flex w-2/3 gap-4">
-            <div className="flex-1">
+        <div className="flex w-full gap-6 justify-center">
+            <div className="flex-shrink-0">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[80px] text-2xl">Gender:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
@@ -37,7 +37,7 @@ export default function UserDetails({
                 </div>
             </div>
             
-            <div className="flex-1">
+            <div className="flex-shrink-0">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[80px] text-2xl">Height:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
@@ -55,8 +55,10 @@ export default function UserDetails({
                     </div>
                 </div>
             </div>
+
+            <div className="flex-auto"></div>
             
-            <div className="flex-1">
+            <div className="flex-shrink-0">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[80px] text-2xl">Weight:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
@@ -75,7 +77,7 @@ export default function UserDetails({
                 </div>
             </div>
 
-            <div className="flex-1">
+            <div className="flex-shrink-0">
                 <div className="flex items-baseline h-10">
                     <span className="min-w-[60px] text-2xl">Age:&nbsp;</span>
                     <div className="flex items-baseline text-2xl">
