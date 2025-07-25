@@ -127,7 +127,7 @@ export default function SearchInput(props: { text: string, searchSet: string[], 
     useEffect(() => {
         updateInputWidth();
         updateSearchSuggestions();
-    }, [searchValue]); // Keep only searchValue to prevent infinite loops
+    }, [searchValue, updateInputWidth, updateSearchSuggestions]);
     
     return (
         <>
