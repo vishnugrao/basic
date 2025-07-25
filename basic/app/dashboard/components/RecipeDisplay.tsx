@@ -249,7 +249,7 @@ export default function RecipeDisplay(props: {
                                                             </button>
                                                             {visibleIndicators.has(step.id) && (
                                                                 <div className="border-2 border-green-500 rounded-lg text-xs md:text-sm w-fit px-2 py-1 bg-green-50">
-                                                                    <span className="text-green-700 font-medium">✓ {step.indicator}</span>
+                                                                                                                                         <span className="text-green-700 font-medium">✓ {step.indicator}</span>
                                                                 </div>
                                                             )}
                                                         </div>

@@ -98,7 +98,7 @@ export default function RerollSelectionModal({
                                 <div className="flex items-center gap-3">
                                     <div className={`border-4 ${selectedRecipes.has(recipe.id) ? 'border-green-500 bg-green-500' : 'border-current'} rounded-md w-6 h-6 min-w-6 min-h-6 flex items-center justify-center flex-shrink-0`}>
                                         {selectedRecipes.has(recipe.id) && (
-                                            <div className="text-white text-xs md:text-sm font-bold">✓</div>
+                                                                                         <div className="text-white text-xs md:text-sm font-bold">✓</div>
                                         )}
                                     </div>
                                     <div>

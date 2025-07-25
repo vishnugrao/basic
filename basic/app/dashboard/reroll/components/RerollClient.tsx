@@ -220,7 +220,7 @@ export default function RerollClient({
                                                 onClick={() => toggleRecipeSelection(index)}
                                             >
                                                 {selectedRecipes.has(index) && (
-                                                    <div className="text-white text-sm font-bold">✓</div>
+                                                                                                         <div className="text-white text-sm font-bold">✓</div>
                                                 )}
                                             </div>
                                             <div>

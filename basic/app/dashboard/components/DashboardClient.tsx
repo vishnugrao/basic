@@ -1057,7 +1057,7 @@ export default function DashboardClient({
                                                 </button>
                                                 {visibleIndicators.has(step.id) && (
                                                     <div className="border-2 border-green-500 rounded-lg text-xs md:text-sm w-fit px-2 py-1 bg-green-50">
-                                                        <span className="text-green-700 font-medium">✓ {step.indicator}</span>
+                                                                                                                 <span className="text-green-700 font-medium">✓ {step.indicator}</span>
                                                     </div>
                                                 )}
                                             </div>
@@ -1327,7 +1327,7 @@ export default function DashboardClient({
                                             : 'hover:bg-gray-100'
                                     }`}
                                 >
-                                    👤 User Details
+                                    User Details
                                 </button>
                                 
                                 <button
@@ -1338,7 +1338,7 @@ export default function DashboardClient({
                                             : 'hover:bg-gray-100'
                                     }`}
                                 >
-                                    🎯 Goals
+                                    Goals
                                 </button>
                                 
                                 <button
@@ -1349,7 +1349,7 @@ export default function DashboardClient({
                                             : 'hover:bg-gray-100'
                                     }`}
                                 >
-                                    🍜 Cuisines
+                                    Cuisines
                                 </button>
                                 
                                 <button
@@ -1360,7 +1360,7 @@ export default function DashboardClient({
                                             : 'hover:bg-gray-100'
                                     }`}
                                 >
-                                    🍽️ Nutrition
+                                    Nutrition
                                 </button>
 
                                 <button
@@ -1371,7 +1371,7 @@ export default function DashboardClient({
                                             : 'hover:bg-gray-100'
                                     }`}
                                 >
-                                    📋 Recipes
+                                    Recipes
                                 </button>
                                 
                                 <button
@@ -1382,7 +1382,7 @@ export default function DashboardClient({
                                             : 'hover:bg-gray-100'
                                     }`}
                                 >
-                                    🛍️ Shopping List
+                                    Shopping List
                                 </button>
 
                                 <button
@@ -1393,7 +1393,7 @@ export default function DashboardClient({
                                             : 'hover:bg-gray-100'
                                     }`}
                                 >
-                                    ⚙️ Preprocessing
+                                    Preprocessing
                                 </button>
                                 
                                 <button
@@ -1404,7 +1404,7 @@ export default function DashboardClient({
                                             : 'hover:bg-gray-100'
                                     }`}
                                 >
-                                    💰 Wallet
+                                    Wallet
                                 </button>
                             </nav>
                         </div>
