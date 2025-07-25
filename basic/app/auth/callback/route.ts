@@ -5,6 +5,12 @@ import { v4 as uuidv4 } from 'uuid'
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
+    
+    // Helper function to create proper redirect URLs
+    const createRedirectUrl = (path: string) => {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.url
+        return new URL(path, siteUrl)
+    }
 
     if (code) {
         const supabase = await createClient()
@@ -17,7 +23,7 @@ export async function GET(request: NextRequest) {
                 
                 if (userError || !user) {
                     console.error('❌ [AUTH_CALLBACK] Error getting user:', userError)
-                    return NextResponse.redirect(new URL('/error?error=AuthCallbackError&error_description=Failed to get user data', request.url))
+                    return NextResponse.redirect(createRedirectUrl('/error?error=AuthCallbackError&error_description=Failed to get user data'))
                 }
                 
                 console.log('✅ [AUTH_CALLBACK] User authenticated:', user.id)
@@ -31,7 +37,7 @@ export async function GET(request: NextRequest) {
                 
                 if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
                     console.error('❌ [AUTH_CALLBACK] Error checking existing user:', checkError)
-                    return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to check user status', request.url))
+                    return NextResponse.redirect(createRedirectUrl('/error?error=DatabaseError&error_description=Failed to check user status'))
                 }
                 
                 // If user doesn't exist in our database, create all necessary records
@@ -62,7 +68,7 @@ export async function GET(request: NextRequest) {
                         if (userCreateError.code === '23505') {
                             console.log('🔵 [AUTH_CALLBACK] User already exists (duplicate key), treating as existing user')
                         } else {
-                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create user record', request.url))
+                            return NextResponse.redirect(createRedirectUrl('/error?error=DatabaseError&error_description=Failed to create user record'))
                         }
                     } else {
                         // Only create other records if user creation was successful
@@ -80,7 +86,7 @@ export async function GET(request: NextRequest) {
                         
                         if (goalsError) {
                             console.error('❌ [AUTH_CALLBACK] Error creating goals:', goalsError)
-                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create goals record', request.url))
+                            return NextResponse.redirect(createRedirectUrl('/error?error=DatabaseError&error_description=Failed to create goals record'))
                         }
                         
                         // Create meal plan record
@@ -94,7 +100,7 @@ export async function GET(request: NextRequest) {
                         
                         if (mealPlanError) {
                             console.error('❌ [AUTH_CALLBACK] Error creating meal plan:', mealPlanError)
-                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create meal plan record', request.url))
+                            return NextResponse.redirect(createRedirectUrl('/error?error=DatabaseError&error_description=Failed to create meal plan record'))
                         }
                         
                         // Create search set record
@@ -108,7 +114,7 @@ export async function GET(request: NextRequest) {
                         
                         if (searchSetError) {
                             console.error('❌ [AUTH_CALLBACK] Error creating search set:', searchSetError)
-                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create search set record', request.url))
+                            return NextResponse.redirect(createRedirectUrl('/error?error=DatabaseError&error_description=Failed to create search set record'))
                         }
                         
                         // Create wallet record
@@ -124,7 +130,7 @@ export async function GET(request: NextRequest) {
                         
                         if (walletError) {
                             console.error('❌ [AUTH_CALLBACK] Error creating wallet:', walletError)
-                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create wallet record', request.url))
+                            return NextResponse.redirect(createRedirectUrl('/error?error=DatabaseError&error_description=Failed to create wallet record'))
                         }
                         
                         console.log('✅ [AUTH_CALLBACK] All database records created successfully for new user')
@@ -134,15 +140,15 @@ export async function GET(request: NextRequest) {
                 }
                 
                 // Redirect to dashboard
-                return NextResponse.redirect(new URL('/dashboard', request.url))
+                return NextResponse.redirect(createRedirectUrl('/dashboard'))
                 
             } catch (error) {
                 console.error('❌ [AUTH_CALLBACK] Unexpected error:', error)
-                return NextResponse.redirect(new URL('/error?error=UnexpectedError&error_description=An unexpected error occurred during authentication', request.url))
+                return NextResponse.redirect(createRedirectUrl('/error?error=UnexpectedError&error_description=An unexpected error occurred during authentication'))
             }
         }
     }
 
     // Return the user to an error page with instructions
-    return NextResponse.redirect(new URL('/error?error=AuthCallbackFailed&error_description=Failed to authenticate with Google', request.url))
+    return NextResponse.redirect(createRedirectUrl('/error?error=AuthCallbackFailed&error_description=Failed to authenticate with Google'))
 } 
