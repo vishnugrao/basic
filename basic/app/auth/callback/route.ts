@@ -22,11 +22,11 @@ export async function GET(request: NextRequest) {
                 
                 console.log('✅ [AUTH_CALLBACK] User authenticated:', user.id)
                 
-                // Check if this is a new user by looking in our Users table
+                // Check if this is a new user by looking in our Users table (check both id and email)
                 const { data: existingUser, error: checkError } = await supabase
                     .from('Users')
-                    .select('id')
-                    .eq('id', user.id)
+                    .select('id, email')
+                    .or(`id.eq.${user.id},email.eq.${user.email}`)
                     .single()
                 
                 if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found" error
@@ -58,71 +58,77 @@ export async function GET(request: NextRequest) {
                     
                     if (userCreateError) {
                         console.error('❌ [AUTH_CALLBACK] Error creating user:', userCreateError)
-                        return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create user record', request.url))
+                        // If it's a duplicate error, treat as existing user instead of failing
+                        if (userCreateError.code === '23505') {
+                            console.log('🔵 [AUTH_CALLBACK] User already exists (duplicate key), treating as existing user')
+                        } else {
+                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create user record', request.url))
+                        }
+                    } else {
+                        // Only create other records if user creation was successful
+                        // Create goals record
+                        const { error: goalsError } = await supabase.from('Goals').insert({
+                            id: uuidv4(),
+                            user_id: uid,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            goal: 'Bulk',
+                            diet: 'Vegetarian',
+                            lacto_ovo: 'Dairy Only', 
+                            activity_level: 1.55
+                        })
+                        
+                        if (goalsError) {
+                            console.error('❌ [AUTH_CALLBACK] Error creating goals:', goalsError)
+                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create goals record', request.url))
+                        }
+                        
+                        // Create meal plan record
+                        const { error: mealPlanError } = await supabase.from('MealPlan').insert({
+                            id: uuidv4(),
+                            user_id: uid,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            cuisines: ['Mediterranean', 'Japanese', 'Mexican']
+                        })
+                        
+                        if (mealPlanError) {
+                            console.error('❌ [AUTH_CALLBACK] Error creating meal plan:', mealPlanError)
+                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create meal plan record', request.url))
+                        }
+                        
+                        // Create search set record
+                        const { error: searchSetError } = await supabase.from('SearchSet').insert({
+                            id: uuidv4(),
+                            user_id: uid,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            searchSet: ["Afghan", "African", "American", "Argentine", "Armenian", "Asian", "Austrian", "Bangladeshi", "Barbeque", "Belgian", "Brazilian", "British", "Cajun", "Caribbean", "Chinese", "Colombian", "Cuban", "Czech", "Danish", "Dutch", "Eastern European", "Egyptian", "Ethiopian", "Filipino", "French", "German", "Greek", "Gujarati", "Hawaiian", "Himalayan", "Hungarian", "Indian", "Indonesian", "Irish", "Israeli", "Italian", "Jamaican", "Japanese", "Jewish", "Korean", "Lebanese", "Mediterranean", "Mexican", "Middle Eastern", "Mongolian", "Moroccan", "Nepalese", "New American", "Nigerian", "Northern European", "Peruvian", "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Salvadoran", "Scandinavian", "Scottish", "Seafood", "Southeast Asian", "Southern", "Spanish", "Sri Lankan", "Swedish", "Swiss", "Syrian", "Taiwanese", "Thai", "Turkish", "Ukrainian", "Vegan", "Vegetarian", "Vietnamese"]
+                        })
+                        
+                        if (searchSetError) {
+                            console.error('❌ [AUTH_CALLBACK] Error creating search set:', searchSetError)
+                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create search set record', request.url))
+                        }
+                        
+                        // Create wallet record
+                        const { error: walletError } = await supabase.from('Wallets').insert({
+                            id: uuidv4(),
+                            user_id: uid,
+                            amount_paid: 2,
+                            amount_used: 0,
+                            requests_made: 0,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString()
+                        })
+                        
+                        if (walletError) {
+                            console.error('❌ [AUTH_CALLBACK] Error creating wallet:', walletError)
+                            return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create wallet record', request.url))
+                        }
+                        
+                        console.log('✅ [AUTH_CALLBACK] All database records created successfully for new user')
                     }
-                    
-                    // Create goals record
-                    const { error: goalsError } = await supabase.from('Goals').insert({
-                        id: uuidv4(),
-                        user_id: uid,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                        goal: 'Bulk',
-                        diet: 'Vegetarian',
-                        lacto_ovo: 'Dairy Only', 
-                        activity_level: 1.55
-                    })
-                    
-                    if (goalsError) {
-                        console.error('❌ [AUTH_CALLBACK] Error creating goals:', goalsError)
-                        return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create goals record', request.url))
-                    }
-                    
-                    // Create meal plan record
-                    const { error: mealPlanError } = await supabase.from('MealPlan').insert({
-                        id: uuidv4(),
-                        user_id: uid,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                        cuisines: ['Mediterranean', 'Japanese', 'Mexican']
-                    })
-                    
-                    if (mealPlanError) {
-                        console.error('❌ [AUTH_CALLBACK] Error creating meal plan:', mealPlanError)
-                        return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create meal plan record', request.url))
-                    }
-                    
-                    // Create search set record
-                    const { error: searchSetError } = await supabase.from('SearchSet').insert({
-                        id: uuidv4(),
-                        user_id: uid,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                        searchSet: ["Afghan", "African", "American", "Argentine", "Armenian", "Asian", "Austrian", "Bangladeshi", "Barbeque", "Belgian", "Brazilian", "British", "Cajun", "Caribbean", "Chinese", "Colombian", "Cuban", "Czech", "Danish", "Dutch", "Eastern European", "Egyptian", "Ethiopian", "Filipino", "French", "German", "Greek", "Gujarati", "Hawaiian", "Himalayan", "Hungarian", "Indian", "Indonesian", "Irish", "Israeli", "Italian", "Jamaican", "Japanese", "Jewish", "Korean", "Lebanese", "Mediterranean", "Mexican", "Middle Eastern", "Mongolian", "Moroccan", "Nepalese", "New American", "Nigerian", "Northern European", "Peruvian", "Polish", "Portuguese", "Punjabi", "Romanian", "Russian", "Salvadoran", "Scandinavian", "Scottish", "Seafood", "Southeast Asian", "Southern", "Spanish", "Sri Lankan", "Swedish", "Swiss", "Syrian", "Taiwanese", "Thai", "Turkish", "Ukrainian", "Vegan", "Vegetarian", "Vietnamese"]
-                    })
-                    
-                    if (searchSetError) {
-                        console.error('❌ [AUTH_CALLBACK] Error creating search set:', searchSetError)
-                        return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create search set record', request.url))
-                    }
-                    
-                    // Create wallet record
-                    const { error: walletError } = await supabase.from('Wallets').insert({
-                        id: uuidv4(),
-                        user_id: uid,
-                        amount_paid: 2,
-                        amount_used: 0,
-                        requests_made: 0,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
-                    })
-                    
-                    if (walletError) {
-                        console.error('❌ [AUTH_CALLBACK] Error creating wallet:', walletError)
-                        return NextResponse.redirect(new URL('/error?error=DatabaseError&error_description=Failed to create wallet record', request.url))
-                    }
-                    
-                    console.log('✅ [AUTH_CALLBACK] All database records created successfully for new user')
                 } else {
                     console.log('✅ [AUTH_CALLBACK] Existing user login')
                 }
