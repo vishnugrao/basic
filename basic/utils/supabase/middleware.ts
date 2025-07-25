@@ -10,6 +10,15 @@ export async function updateSession(request:NextRequest) {
     console.log('🔵 [MIDDLEWARE] Processing request:', request.nextUrl.pathname)
     console.log('🔵 [MIDDLEWARE] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...')
 
+    // Check if this is an OAuth callback with a code parameter on any path
+    const code = request.nextUrl.searchParams.get('code')
+    if (code && !request.nextUrl.pathname.startsWith('/auth/callback')) {
+        console.log('🔵 [MIDDLEWARE] OAuth code detected, redirecting to callback route')
+        const callbackUrl = new URL('/auth/callback', request.url)
+        callbackUrl.searchParams.set('code', code)
+        return NextResponse.redirect(callbackUrl)
+    }
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
