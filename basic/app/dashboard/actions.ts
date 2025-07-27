@@ -4,6 +4,7 @@ import { Recipe, Ingredient, Preprocessing } from "@/types/types";
 import { createClient } from "@/utils/supabase/server";
 import { UUID } from "crypto";
 import { redirect } from "next/navigation";
+import { User } from "@/types/types";
 
 export async function insertRecipes(recipe: Recipe) {
     const supabase = await createClient()
@@ -163,34 +164,29 @@ export async function getSteps(user_id: UUID) {
     return data;
 }
 
-export async function updateUserDetails(userDetails: {
-    gender: string;
-    height: number;
-    weight: number;
-    age: number;
-    updated_at: string;
-    email: string;
-}) {
+export async function updateUserDetails(userDetails: User) {
     const supabase = await createClient()
 
-    const { error } = await supabase.from('Users').update(userDetails).eq('email', userDetails.email)
+    try {
+        const { error } = await supabase.from('Users').update({
+            name: userDetails.name,
+            gender: userDetails.gender,
+            height: userDetails.height,
+            weight: userDetails.weight,
+            age: userDetails.age,
+            updated_at: userDetails.updated_at
+        }).eq('id', userDetails.id)
 
-    if (error) {
-        console.error(error)
-    }
-}
+        if (error) {
+            console.error('❌ [UPDATE_USER] Error updating user:', error)
+            return { error: 'Failed to update user details' }
+        }
 
-export async function updateUserName(userDetails: {
-    name: string,
-    updated_at: string,
-    user_id: string
-}) {
-    const supabase = await createClient()
-
-    const { error } = await supabase.from('Users').update(userDetails).eq('id', userDetails.user_id)
-
-    if (error) {
-        console.error(error)
+        console.log('✅ [UPDATE_USER] Successfully updated user details')
+        return { success: true }
+    } catch (error) {
+        console.error('❌ [UPDATE_USER] Unexpected error:', error)
+        return { error: 'An unexpected error occurred while updating user' }
     }
 }
 
@@ -607,40 +603,49 @@ export async function deleteAccount() {
         
         if (userError || !user) {
             console.error('❌ [DELETE_ACCOUNT] Error getting user:', userError)
-            redirect('/error?error=DeleteAccountError&error_description=Failed to get user data')
+            return { error: 'Failed to get user data' }
         }
         
         const userId = user.id
         console.log('🔵 [DELETE_ACCOUNT] Deleting all data for user:', userId)
         
         // Delete all user data in the correct order (respecting foreign key constraints)
-        // 1. Delete recipes and related data
-        await supabase.from('Steps').delete().eq('user_id', userId)
-        await supabase.from('Preprocessing').delete().eq('user_id', userId)
-        await supabase.from('Ingredients').delete().eq('user_id', userId)
-        await supabase.from('Recipes').delete().eq('user_id', userId)
+        const deleteOperations = [
+            supabase.from('Steps').delete().eq('user_id', userId),
+            supabase.from('Preprocessing').delete().eq('user_id', userId),
+            supabase.from('Ingredients').delete().eq('user_id', userId),
+            supabase.from('Recipes').delete().eq('user_id', userId),
+            supabase.from('Wallets').delete().eq('user_id', userId),
+            supabase.from('SearchSet').delete().eq('user_id', userId),
+            supabase.from('MealPlan').delete().eq('user_id', userId),
+            supabase.from('Goals').delete().eq('user_id', userId),
+            supabase.from('Users').delete().eq('id', userId)
+        ]
         
-        // 2. Delete other user data
-        await supabase.from('Wallets').delete().eq('user_id', userId)
-        await supabase.from('SearchSet').delete().eq('user_id', userId)
-        await supabase.from('MealPlan').delete().eq('user_id', userId)
-        await supabase.from('Goals').delete().eq('user_id', userId)
+        // Execute all delete operations and check for errors
+        for (const operation of deleteOperations) {
+            const { error } = await operation
+            if (error) {
+                console.error('❌ [DELETE_ACCOUNT] Error during deletion:', error)
+                return { error: 'Failed to delete account data' }
+            }
+        }
         
-        // 3. Finally delete the user record
-        await supabase.from('Users').delete().eq('id', userId)
+        // Sign out the user
+        const { error: signOutError } = await supabase.auth.signOut()
         
-        // 4. Sign out and delete the auth user
-        await supabase.auth.signOut()
+        if (signOutError) {
+            console.error('❌ [DELETE_ACCOUNT] Error signing out:', signOutError)
+            return { error: 'Account deleted but failed to sign out' }
+        }
         
         console.log('✅ [DELETE_ACCOUNT] Successfully deleted all user data')
+        return { success: true }
         
     } catch (error) {
-        console.error('❌ [DELETE_ACCOUNT] Error deleting account:', error)
-        redirect('/error?error=DeleteAccountError&error_description=Failed to delete account')
+        console.error('❌ [DELETE_ACCOUNT] Unexpected error:', error)
+        return { error: 'An unexpected error occurred while deleting account' }
     }
-    
-    // Redirect to login page
-    redirect('/login')
 }
 
 export async function signOutUser() {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import MealPlanner from "./MealPlanner";
 import QuantitativeNutrition from "./QuantitativeNutrition";
 import { User, Goal, MealPlan, SearchSet, Recipe, RecipeWithData, Ingredient, Preprocessing, Step, UserWallet as UserWalletType } from "@/types/types";
-import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, updateMultipleRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateMultipleSteps, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes, getWallet, signOutUser, deleteAccount, updateUserName } from "../actions";
+import { updateUserDetails, updateGoalDetails, updateMealPlanner, deleteRecipes, updateMultipleRecipes, updateMultipleIngredients, updateMultiplePreprocessing, updateSpecificPreprocessing, updateMultipleSteps, updateWallet, deleteIngredientsForRecipes, deletePreprocessingForRecipes, deleteStepsForRecipes, getWallet, signOutUser, deleteAccount } from "../actions";
 import InlineInput from "./InlineInput";
 import ToggleInput from "./ToggleInput";
 
@@ -86,17 +86,25 @@ export default function DashboardClient({
     const handleUserUpdate = async (updates: Partial<User>) => {
         const updatedUser = { ...userDetails, ...updates, updated_at: new Date().toISOString() };
         setUserDetails(updatedUser);
-        await updateUserDetails(updatedUser);
+        
+        const result = await updateUserDetails(updatedUser);
+        if (result.error) {
+            console.error('Failed to update user:', result.error);
+            // Revert the local state if the update failed
+            setUserDetails(userDetails);
+        }
     };
 
     const handleUsernameUpdate = async (newName: string) => {
         const updatedUser = { ...userDetails, name: newName, updated_at: new Date().toISOString() };
         setUserDetails(updatedUser);
-        await updateUserName({
-            name: newName,
-            updated_at: new Date().toISOString(),
-            user_id: userDetails.id
-        });
+        
+        const result = await updateUserDetails(updatedUser);
+        if (result.error) {
+            console.error('Failed to update username:', result.error);
+            // Revert the local state if the update failed
+            setUserDetails(userDetails);
+        }
     };
 
     const handleSignOut = async () => {
@@ -108,7 +116,13 @@ export default function DashboardClient({
     const handleDeleteAccount = async () => {
         if (confirm('Are you sure you want to delete your account? This action cannot be undone and will permanently delete all your data.')) {
             if (confirm('This will permanently delete all your recipes, meal plans, and account data. Are you absolutely sure?')) {
-                await deleteAccount();
+                const result = await deleteAccount();
+                if (result.error) {
+                    alert(`Failed to delete account: ${result.error}`);
+                } else {
+                    // Only redirect if successful
+                    window.location.href = '/login';
+                }
             }
         }
     };
