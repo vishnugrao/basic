@@ -63,6 +63,9 @@ export default function ShoppingList(props: {
                 <div className="flex flex-col bg-[#F5F5F1] w-2/3 rounded-xl popup p-10 max-h-[1200px] max-w-[1000px] overflow-scroll scrollbar-hide"
                     onClick={(e) => {
                         e.stopPropagation();
+                    }}
+                    onScroll={(e) => {
+                        e.stopPropagation();
                     }}>
                     <div className="flex flex-col gap-4">
                         {aggregatedList.map((ingredient, index) => (
