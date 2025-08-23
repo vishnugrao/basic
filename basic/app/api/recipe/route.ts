@@ -9,6 +9,27 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
+// Vector store ID for cookbook collection - should be set in environment variables
+const COOKBOOK_VECTOR_STORE_ID = process.env.COOKBOOK_VECTOR_STORE_ID || 'vs_default_cookbook_id';
+
+// Type definitions for vector store search results
+interface VectorStoreSearchContent {
+    type: string;
+    text: string;
+}
+
+interface VectorStoreSearchResult {
+    file_id: string;
+    filename: string;
+    score: number;
+    content: VectorStoreSearchContent[];
+}
+
+interface VectorStoreSearchResponse {
+    data: VectorStoreSearchResult[];
+    has_more: boolean;
+}
+
 // Define the JSON schema for Structured Outputs
 const recipeSchema = {
     type: "json_schema" as const,
@@ -132,6 +153,88 @@ const recipeSchema = {
     }
 };
 
+// Function to generate an optimal search query using babbage-002
+async function generateSearchQuery(userDetails: User, goalDetails: Goal, cuisines: string[], calorieTarget: number, proteinTarget: number, fatTarget: number): Promise<string> {
+    try {
+        const queryPrompt = `Based on the following user requirements, generate a concise search query to find relevant recipes and cooking techniques from professional cookbooks:
+
+User Details:
+- Diet: ${goalDetails.diet}
+- Lacto-Ovo: ${goalDetails.lacto_ovo}
+- Preferred Cuisines: ${cuisines.join(', ')}
+
+Nutritional Targets:
+- Calories: ${calorieTarget}
+- Protein: ${proteinTarget}g
+- Fat: ${fatTarget}g
+
+Generate a focused search query that would help find:
+1. Cooking techniques and methods relevant to the diet and cuisine
+2. Professional recipes with similar nutritional profiles
+3. Ingredient preparation methods and tips
+4. Flavor combinations and seasoning guidance
+
+Output only the search query, no additional text.`;
+
+        const completion = await openai.chat.completions.create({
+            model: "babbage-002",
+            messages: [
+                {
+                    role: "user",
+                    content: queryPrompt
+                }
+            ],
+            max_tokens: 100,
+            temperature: 0.7
+        });
+
+        return completion.choices[0].message.content?.trim() || `${goalDetails.diet} ${cuisines.join(' ')} recipes cooking techniques`;
+    } catch (error) {
+        console.error('Error generating search query:', error);
+        // Fallback query
+        return `${goalDetails.diet} ${cuisines.join(' ')} recipes cooking techniques nutritional ${calorieTarget} calories`;
+    }
+}
+
+// Function to search the cookbook vector store
+async function searchCookbookVectorStore(query: string): Promise<string> {
+    try {
+        const response = await fetch(`https://api.openai.com/v1/vector_stores/${COOKBOOK_VECTOR_STORE_ID}/search`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                query: query,
+                max_num_results: 10,
+                rewrite_query: true
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Vector store search failed: ${response.statusText}`);
+        }
+
+        const searchResults: VectorStoreSearchResponse = await response.json();
+        
+        // Extract and combine relevant content from search results
+        const retrievedContent = searchResults.data
+            .map((result: VectorStoreSearchResult) => {
+                const content = result.content
+                    .map((c: VectorStoreSearchContent) => c.type === 'text' ? c.text : '')
+                    .join(' ');
+                return `From "${result.filename}":\n${content}`;
+            })
+            .join('\n\n');
+
+        return retrievedContent;
+    } catch (error) {
+        console.error('Error searching vector store:', error);
+        return ''; // Return empty string if search fails
+    }
+}
+
 export async function POST(req: Request) {
     try {
         const supabase = await createClient();
@@ -146,7 +249,18 @@ export async function POST(req: Request) {
             cookDate
         } = await req.json();
         
-        const prompt = constructPrompt(userDetails, goalDetails, cuisines, existingRecipes, calorieTarget, proteinTarget, fatTarget);
+        // RAG: Generate optimal search query using babbage-002
+        console.log('Generating search query for cookbook RAG...');
+        const searchQuery = await generateSearchQuery(userDetails, goalDetails, cuisines, calorieTarget, proteinTarget, fatTarget);
+        console.log('Generated search query:', searchQuery);
+
+        // RAG: Search cookbook vector store
+        console.log('Searching cookbook vector store...');
+        const cookbookContext = await searchCookbookVectorStore(searchQuery);
+        console.log('Retrieved cookbook content length:', cookbookContext.length);
+
+        // Construct enhanced prompt with cookbook context
+        const prompt = constructPrompt(userDetails, goalDetails, cuisines, existingRecipes, calorieTarget, proteinTarget, fatTarget, cookbookContext);
         console.log(prompt.slice(0, 200));
         
         const completion = await openai.chat.completions.create({
@@ -249,9 +363,21 @@ export async function POST(req: Request) {
     }
 }
 
-function constructPrompt(userDetails: User, goalDetails: Goal, cuisines: string[], existingRecipes: Recipe[], calorieTarget: number, proteinTarget: number, fatTarget: number) {
+function constructPrompt(userDetails: User, goalDetails: Goal, cuisines: string[], existingRecipes: Recipe[], calorieTarget: number, proteinTarget: number, fatTarget: number, cookbookContext?: string) {
 
-    return `Generate a nutritious, healthy and tasty recipe following these guidelines:
+    const contextSection = cookbookContext ? `
+Professional Cookbook Guidance:
+The following excerpts from professional cookbooks provide relevant techniques and insights for your recipe:
+
+${cookbookContext}
+
+Use the above cookbook knowledge as inspiration and guidance for creating your recipe, incorporating professional techniques and flavor combinations where appropriate.
+
+---
+
+` : '';
+
+    return `${contextSection}Generate a nutritious, healthy and tasty recipe following these guidelines:
 
 Plate Construction:
 - 50% vegetables and fruits (no potatoes)
