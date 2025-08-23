@@ -9,8 +9,8 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
 });
 
-// Vector store ID for cookbook collection - should be set in environment variables
-const COOKBOOK_VECTOR_STORE_ID = process.env.COOKBOOK_VECTOR_STORE_ID || 'vs_default_cookbook_id';
+// Vector store ID for cookbook collection - "Cooking Knowledge Base" from OpenAI platform
+const COOKBOOK_VECTOR_STORE_ID = process.env.COOKBOOK_VECTOR_STORE_ID || 'vs_68a9b54c1670819194d8ce90e254c42f';
 
 // Type definitions for vector store search results
 interface VectorStoreSearchContent {
