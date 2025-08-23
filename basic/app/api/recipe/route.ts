@@ -179,19 +179,14 @@ Focus the search on capturing the authentic cooking philosophy and flavor develo
 
 Output only the search query, no additional text.`;
 
-        const completion = await openai.chat.completions.create({
+        const completion = await openai.completions.create({
             model: "babbage-002",
-            messages: [
-                {
-                    role: "user",
-                    content: queryPrompt
-                }
-            ],
+            prompt: queryPrompt,
             max_tokens: 100,
             temperature: 0.7
         });
 
-        return completion.choices[0].message.content?.trim() || `${goalDetails.diet} ${cuisines.join(' ')} recipes cooking techniques`;
+        return completion.choices[0].text?.trim() || `${goalDetails.diet} ${cuisines.join(' ')} recipes cooking techniques`;
     } catch (error) {
         console.error('Error generating search query:', error);
         // Fallback query
