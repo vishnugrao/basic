@@ -156,28 +156,13 @@ const recipeSchema = {
 // Function to generate an optimal search query using babbage-002
 async function generateSearchQuery(userDetails: User, goalDetails: Goal, cuisines: string[], calorieTarget: number, proteinTarget: number, fatTarget: number): Promise<string> {
     try {
-        const queryPrompt = `Based on the following user requirements, generate a concise search query to find relevant recipes and cooking techniques from professional cookbooks, with emphasis on flavor development and cuisine-specific methods:
+        const queryPrompt = `I'm looking for cookbook content to help create a delicious ${goalDetails.diet} recipe. The person follows a ${goalDetails.lacto_ovo ? 'lacto-ovo vegetarian' : 'regular'} diet and loves ${cuisines.join(' and ')} cuisine. 
 
-User Details:
-- Diet: ${goalDetails.diet}
-- Lacto-Ovo: ${goalDetails.lacto_ovo}
-- Preferred Cuisines: ${cuisines.join(', ')}
+They need a meal with about ${calorieTarget} calories, ${proteinTarget}g protein, and ${fatTarget}g fat.
 
-Nutritional Targets:
-- Calories: ${calorieTarget}
-- Protein: ${proteinTarget}g
-- Fat: ${fatTarget}g
+What should I search for in the cookbook database to find the best recipes, cooking techniques, and flavor combinations for ${cuisines.join(' and ')} cuisine? I want to discover authentic cooking methods, traditional spice blends, proper ingredient preparation, and professional tips that will make this dish taste amazing.
 
-Generate a focused search query that prioritizes finding:
-1. Flavor profiles, taste balancing, and seasoning techniques specific to ${cuisines.join(' and ')} cuisine
-2. Traditional cooking methods and techniques characteristic of ${cuisines.join(' and ')} cooking style
-3. Spice combinations, aromatics, and flavor-building techniques from ${cuisines.join(' and ')} culinary traditions
-4. Heat application methods, timing, and temperature control specific to ${cuisines.join(' and ')} cuisine
-5. Ingredient treatment and preparation methods that enhance flavor in ${cuisines.join(' and ')} cooking
-
-Focus the search on capturing the authentic cooking philosophy and flavor development approach of ${cuisines.join(' and ')} cuisine.
-
-Output only the search query, no additional text.`;
+Generate a natural search query that would find the most helpful cookbook content for creating an authentic, flavorful ${cuisines.join(' and ')} dish.`;
 
         const completion = await openai.completions.create({
             model: "babbage-002",
