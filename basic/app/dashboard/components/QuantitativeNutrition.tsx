@@ -130,122 +130,9 @@ export default function QuantitativeNutrition(props: {
         setIsInsufficientBalanceOpen(true);
     };
 
-    // Commit collected data to database atomically
-    const commitCollectedDataToDatabase = async (
-        recipes: Recipe[], 
-        ingredients: Ingredient[], 
-        preprocessing: Preprocessing[], 
-        steps: Step[], 
-        clearFirst: boolean = false
-    ) => {
-        try {
-            // Filter out skeleton recipes before committing
-            const validRecipes = recipes.filter(recipe => 
-                !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
-            );
 
-            // Get all recipe IDs that should exist in the database
-            const validRecipeIds = validRecipes.map(recipe => recipe.id);
 
-            console.log('📊 [COMMIT] Collected data before filtering:');
-            console.log('📊 [COMMIT] Valid recipe IDs:', validRecipeIds);
-            console.log('📊 [COMMIT] Collected ingredients count:', ingredients.length);
-            console.log('📊 [COMMIT] Collected preprocessing count:', preprocessing.length);
-            console.log('📊 [COMMIT] Collected steps count:', steps.length);
 
-            // Filter ingredients, preprocessing, and steps to only include those for valid recipes
-            const validIngredients = ingredients.filter(ingredient => 
-                validRecipeIds.includes(ingredient.recipe_id)
-            );
-            const validPreprocessing = preprocessing.filter(prep => 
-                validRecipeIds.includes(prep.recipe_id)
-            );
-            const validSteps = steps.filter(step => 
-                validRecipeIds.includes(step.recipe_id)
-            );
-
-            console.log('📊 [COMMIT] After filtering:');
-            console.log('📊 [COMMIT] Valid ingredients count:', validIngredients.length);
-            console.log('📊 [COMMIT] Valid preprocessing count:', validPreprocessing.length);
-            console.log('📊 [COMMIT] Valid steps count:', validSteps.length);
-
-            // Insert all collected data to DB
-            await props.onUpdateAll(validRecipes);
-            await onUpdateShoppingList(validIngredients);
-            await onUpdatePreprocessing(validPreprocessing);
-            await onUpdateSteps(validSteps);
-
-            // Update local state with the committed data
-            setLocalRecipes(validRecipes);
-            setLocalIngredients(validIngredients);
-            setLocalPreprocessing(validPreprocessing);
-            setLocalSteps(validSteps);
-
-            if (clearFirst) {
-                console.log('✅ [COMMIT] Committed full state with recipe IDs:', validRecipeIds);
-            }
-        } catch (error) {
-            console.error('❌ [COMMIT] Error committing collected data to database:', error);
-            throw error;
-        }
-    };
-
-    // Smart commit that inserts entire local state with orphan cleanup
-    const commitCollectedDataToDatabaseSmart = async (
-        recipes: Recipe[], 
-        ingredients: Ingredient[], 
-        preprocessing: Preprocessing[], 
-        steps: Step[]
-    ) => {
-        try {
-            // Filter out skeleton recipes before committing
-            const validRecipes = recipes.filter(recipe => 
-                !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
-            );
-
-            console.log('📊 [SMART COMMIT] Starting smart commit with fresh local state');
-            console.log('📊 [SMART COMMIT] Final recipe IDs:', validRecipes.map(r => r.id));
-
-            // Filter ingredients, preprocessing, and steps to only include those for valid recipes
-            const validRecipeIds = validRecipes.map(recipe => recipe.id);
-            const validIngredients = ingredients.filter(ingredient => 
-                validRecipeIds.includes(ingredient.recipe_id)
-            );
-            const validPreprocessing = preprocessing.filter(prep => 
-                validRecipeIds.includes(prep.recipe_id)
-            );
-            const validSteps = steps.filter(step => 
-                validRecipeIds.includes(step.recipe_id)
-            );
-
-            console.log('📊 [SMART COMMIT] Committing complete final state:', {
-                recipesCount: validRecipes.length,
-                ingredientsCount: validIngredients.length,
-                preprocessingCount: validPreprocessing.length,
-                stepsCount: validSteps.length,
-                finalRecipeIds: validRecipeIds
-            });
-
-            // Insert/update all data to DB (this will handle existing vs new recipe logic in the backend)
-            // The backend should handle: if recipe_id exists, update; if not, insert
-            // Then delete orphans not in the final validRecipeIds list
-            await props.onUpdateAll(validRecipes);
-            await onUpdateShoppingList(validIngredients);
-            await onUpdatePreprocessing(validPreprocessing);
-            await onUpdateSteps(validSteps);
-
-            // Update local state with the committed data
-            setLocalRecipes(validRecipes);
-            setLocalIngredients(validIngredients);
-            setLocalPreprocessing(validPreprocessing);
-            setLocalSteps(validSteps);
-
-            console.log('✅ [SMART COMMIT] Smart commit completed with final recipe IDs:', validRecipeIds);
-        } catch (error) {
-            console.error('❌ [SMART COMMIT] Error in smart commit:', error);
-            throw error;
-        }
-    };
 
 
 
@@ -656,33 +543,58 @@ export default function QuantitativeNutrition(props: {
                 );
             });
 
-            // Await all threads to finish and collect the data
-            console.log('⏳ [ROLLRECIPES] All recipe promises completed');
-            const recipeResults = await Promise.all(recipePromises);
+            // Await all threads to finish - each thread has already locked and appended to local state
+            console.log('⏳ [ROLLRECIPES] Waiting for all recipe generation threads to complete...');
+            await Promise.all(recipePromises);
+            console.log('✅ [ROLLRECIPES] All recipe generation threads completed');
             
-            // Collect all data from the promises
-            const allRecipes = recipeResults.map(result => result.recipe);
-            const allIngredients = recipeResults.flatMap(result => result.ingredients);
-            const allPreprocessing = recipeResults.flatMap(result => result.preprocessing);
-            const allSteps = recipeResults.flatMap(result => result.steps);
+            // Commit the local recipes state to the DB atomically (drop all db entries and replace with the local state)
+            console.log('💾 [ROLLRECIPES] Committing local state to database atomically...');
+            await stateMutex.lock();
+            let recipesToCommit: Recipe[];
+            let ingredientsToCommit: Ingredient[];
+            let preprocessingToCommit: Preprocessing[];
+            let stepsToCommit: Step[];
             
-            console.log('📊 [ROLLRECIPES] Collected data from promises:', {
-                recipesCount: allRecipes.length,
-                ingredientsCount: allIngredients.length,
-                preprocessingCount: allPreprocessing.length,
-                stepsCount: allSteps.length
+            try {
+                // Capture current local state for atomic commit
+                recipesToCommit = [...localRecipes];
+                ingredientsToCommit = [...localIngredients];
+                preprocessingToCommit = [...localPreprocessing];
+                stepsToCommit = [...localSteps];
+            } finally {
+                stateMutex.unlock();
+            }
+
+            // Filter out skeleton recipes before committing
+            const validRecipes = recipesToCommit.filter(recipe => 
+                !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
+            );
+            const validRecipeIds = validRecipes.map(recipe => recipe.id);
+            const validIngredients = ingredientsToCommit.filter(ing => validRecipeIds.includes(ing.recipe_id));
+            const validPreprocessing = preprocessingToCommit.filter(prep => validRecipeIds.includes(prep.recipe_id));
+            const validSteps = stepsToCommit.filter(step => validRecipeIds.includes(step.recipe_id));
+
+            console.log('📊 [ROLLRECIPES] Committing to database:', {
+                recipesCount: validRecipes.length,
+                ingredientsCount: validIngredients.length,
+                preprocessingCount: validPreprocessing.length,
+                stepsCount: validSteps.length
             });
-            
-            // Commit the collected data to the DB atomically (clear first since this is a full reset)
-            await commitCollectedDataToDatabase(allRecipes, allIngredients, allPreprocessing, allSteps, true);
+
+            // Atomic commit: Insert new recipes and keep track of recipe-id, then remove everything except those tracked recipe ids
+            await props.onUpdateAll(validRecipes);
+            await onUpdateShoppingList(validIngredients);
+            await onUpdatePreprocessing(validPreprocessing);
+            await onUpdateSteps(validSteps);
             
             // Update wallet after successful generation (4 recipes = 12 cents)
             await onWalletUpdate(0.12, 4);
             
-            console.log('Successfully generated new meal plan!');
+            console.log('✅ [ROLLRECIPES] Successfully generated new meal plan and committed to database!');
         } catch (error) {
-            console.error(error instanceof Error ? error.message : 'Failed to generate meal plan');
-            console.error('Error generating recipes:', error);
+            console.error('❌ [ROLLRECIPES]', error instanceof Error ? error.message : 'Failed to generate meal plan');
+            console.error('❌ [ROLLRECIPES] Full error:', error);
         } finally {
             setIsLoading(false);
         }
@@ -1058,17 +970,23 @@ export default function QuantitativeNutrition(props: {
             setLocalPreprocessing(finalPreprocessing);
             setLocalSteps(finalSteps);
 
-            // Commit the complete final state to the DB with smart insert logic
-            await commitCollectedDataToDatabaseSmart(validFinalRecipes, finalIngredients, finalPreprocessing, finalSteps);
+            // Commit the local recipes state to the DB atomically (drop all db entries and replace with the local state)
+            console.log('💾 [REROLLSELECTED] Committing final state to database atomically...');
+            await props.onUpdateAll(validFinalRecipes);
+            await onUpdateShoppingList(finalIngredients);
+            await onUpdatePreprocessing(finalPreprocessing);
+            await onUpdateSteps(finalSteps);
 
             // Update wallet after all recipes are completed
             await onWalletUpdate(selectedIndices.length * 0.05, selectedIndices.length);
             
             setCustomCuisine("...");
             setSelectedRerollCuisines(mealPlan.cuisines);
+            
+            console.log('✅ [REROLLSELECTED] Successfully rerolled selected recipes and committed to database!');
         } catch (error) {
-            console.error(error instanceof Error ? error.message : 'Failed to reroll selected recipes');
-            console.error('Error rerolling selected recipes:', error);
+            console.error('❌ [REROLLSELECTED]', error instanceof Error ? error.message : 'Failed to reroll selected recipes');
+            console.error('❌ [REROLLSELECTED] Full error:', error);
         } finally {
             setIsLoading(false);
         }
