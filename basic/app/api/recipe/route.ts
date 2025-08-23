@@ -156,7 +156,7 @@ const recipeSchema = {
 // Function to generate an optimal search query using babbage-002
 async function generateSearchQuery(userDetails: User, goalDetails: Goal, cuisines: string[], calorieTarget: number, proteinTarget: number, fatTarget: number): Promise<string> {
     try {
-        const queryPrompt = `Based on the following user requirements, generate a concise search query to find relevant recipes and cooking techniques from professional cookbooks:
+        const queryPrompt = `Based on the following user requirements, generate a concise search query to find relevant recipes and cooking techniques from professional cookbooks, with emphasis on flavor development and cuisine-specific methods:
 
 User Details:
 - Diet: ${goalDetails.diet}
@@ -168,11 +168,14 @@ Nutritional Targets:
 - Protein: ${proteinTarget}g
 - Fat: ${fatTarget}g
 
-Generate a focused search query that would help find:
-1. Cooking techniques and methods relevant to the diet and cuisine
-2. Professional recipes with similar nutritional profiles
-3. Ingredient preparation methods and tips
-4. Flavor combinations and seasoning guidance
+Generate a focused search query that prioritizes finding:
+1. Flavor profiles, taste balancing, and seasoning techniques specific to ${cuisines.join(' and ')} cuisine
+2. Traditional cooking methods and techniques characteristic of ${cuisines.join(' and ')} cooking style
+3. Spice combinations, aromatics, and flavor-building techniques from ${cuisines.join(' and ')} culinary traditions
+4. Heat application methods, timing, and temperature control specific to ${cuisines.join(' and ')} cuisine
+5. Ingredient treatment and preparation methods that enhance flavor in ${cuisines.join(' and ')} cooking
+
+Focus the search on capturing the authentic cooking philosophy and flavor development approach of ${cuisines.join(' and ')} cuisine.
 
 Output only the search query, no additional text.`;
 
