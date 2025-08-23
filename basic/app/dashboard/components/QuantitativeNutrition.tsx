@@ -543,37 +543,49 @@ export default function QuantitativeNutrition(props: {
                 );
             });
 
-            // Await all threads to finish - each thread has already locked and appended to local state
+            // Await all threads to finish and collect the generated recipe data
             console.log('⏳ [ROLLRECIPES] Waiting for all recipe generation threads to complete...');
-            await Promise.all(recipePromises);
+            const generatedRecipeResults = await Promise.all(recipePromises);
             console.log('✅ [ROLLRECIPES] All recipe generation threads completed');
+            console.log('🔍 [ROLLRECIPES] Generated recipe results:', generatedRecipeResults.map(result => ({
+                recipeId: result?.recipe?.id,
+                recipeName: result?.recipe?.recipe_name,
+                ingredientsCount: result?.ingredients?.length || 0,
+                preprocessingCount: result?.preprocessing?.length || 0,
+                stepsCount: result?.steps?.length || 0
+            })));
             
-            // Commit the local recipes state to the DB atomically (drop all db entries and replace with the local state)
-            console.log('💾 [ROLLRECIPES] Committing local state to database atomically...');
-            await stateMutex.lock();
-            let recipesToCommit: Recipe[];
-            let ingredientsToCommit: Ingredient[];
-            let preprocessingToCommit: Preprocessing[];
-            let stepsToCommit: Step[];
+            // Build commit arrays directly from the returned data instead of relying on local state
+            console.log('💾 [ROLLRECIPES] Building commit arrays from generated results...');
+            const recipesToCommit = generatedRecipeResults
+                .filter(result => result && result.recipe && result.recipe.id)
+                .map(result => result.recipe);
             
-            try {
-                // Capture current local state for atomic commit
-                recipesToCommit = [...localRecipes];
-                ingredientsToCommit = [...localIngredients];
-                preprocessingToCommit = [...localPreprocessing];
-                stepsToCommit = [...localSteps];
-            } finally {
-                stateMutex.unlock();
-            }
+            const ingredientsToCommit = generatedRecipeResults
+                .filter(result => result && result.ingredients)
+                .flatMap(result => result.ingredients);
+                
+            const preprocessingToCommit = generatedRecipeResults
+                .filter(result => result && result.preprocessing)
+                .flatMap(result => result.preprocessing);
+                
+            const stepsToCommit = generatedRecipeResults
+                .filter(result => result && result.steps)
+                .flatMap(result => result.steps);
+                
+            console.log('🔍 [ROLLRECIPES] Commit arrays built:', {
+                recipesCount: recipesToCommit.length,
+                ingredientsCount: ingredientsToCommit.length,
+                preprocessingCount: preprocessingToCommit.length,
+                stepsCount: stepsToCommit.length
+            });
 
-            // Filter out skeleton recipes before committing
-            const validRecipes = recipesToCommit.filter(recipe => 
-                !recipe.id.startsWith('00000000-0000-0000-0000-skeleton')
-            );
-            const validRecipeIds = validRecipes.map(recipe => recipe.id);
-            const validIngredients = ingredientsToCommit.filter(ing => validRecipeIds.includes(ing.recipe_id));
-            const validPreprocessing = preprocessingToCommit.filter(prep => validRecipeIds.includes(prep.recipe_id));
-            const validSteps = stepsToCommit.filter(step => validRecipeIds.includes(step.recipe_id));
+            // Since we built arrays directly from generated results, they should already be valid (no skeleton recipes)
+            console.log('🔍 [ROLLRECIPES] Final recipes to commit:', recipesToCommit.map(r => ({ id: r.id, name: r.recipe_name })));
+            const validRecipes = recipesToCommit;
+            const validIngredients = ingredientsToCommit;
+            const validPreprocessing = preprocessingToCommit;  
+            const validSteps = stepsToCommit;
 
             console.log('📊 [ROLLRECIPES] Committing to database:', {
                 recipesCount: validRecipes.length,
@@ -587,6 +599,13 @@ export default function QuantitativeNutrition(props: {
             await onUpdateShoppingList(validIngredients);
             await onUpdatePreprocessing(validPreprocessing);
             await onUpdateSteps(validSteps);
+            
+            // Update local state to reflect the committed data (in case state updates from threads didn't propagate)
+            console.log('🔄 [ROLLRECIPES] Updating local state to match committed data...');
+            setLocalRecipes(validRecipes);
+            setLocalIngredients(validIngredients);
+            setLocalPreprocessing(validPreprocessing);
+            setLocalSteps(validSteps);
             
             // Update wallet after successful generation (4 recipes = 12 cents)
             await onWalletUpdate(0.12, 4);
@@ -755,6 +774,9 @@ export default function QuantitativeNutrition(props: {
                         stepsCount: steps.length
                     });
                     
+                    console.log(`🔍 [REROLL INDEX ${originalIndex}] Full API response data:`, data);
+                    console.log(`🔍 [REROLL INDEX ${originalIndex}] Recipe object:`, recipe);
+                    
                     // Verify cuisine match
                     if (recipe?.cuisine && cuisinesToSend.length > 0) {
                         const cuisineMatch = cuisinesToSend.some(cuisine => 
@@ -769,7 +791,13 @@ export default function QuantitativeNutrition(props: {
                     }
 
                     if (!recipe || typeof recipe !== 'object') {
+                        console.error(`❌ [REROLL INDEX ${originalIndex}] Invalid recipe data:`, recipe);
                         throw new Error('Invalid recipe data received');
+                    }
+                    
+                    if (!recipe.id || typeof recipe.id !== 'string') {
+                        console.error(`❌ [REROLL INDEX ${originalIndex}] Invalid recipe ID:`, recipe.id);
+                        throw new Error('Recipe ID is missing or invalid');
                     }
 
                     // Ensure proper recipe IDs on related data
@@ -784,13 +812,20 @@ export default function QuantitativeNutrition(props: {
                      try {
                          console.log(`🔄 [REROLL INDEX ${originalIndex}] Replacing skeleton at index ${originalIndex}`);
                          
-                         // Replace the skeleton recipe at the original index
-                         setLocalRecipes(prevRecipes => {
-                             const newRecipes = [...prevRecipes];
-                             newRecipes[originalIndex] = recipe;
-                             console.log(`🔄 [REROLL INDEX ${originalIndex}] Recipe replaced at index ${originalIndex}`);
-                             return newRecipes;
-                         });
+                                                  // Replace the skeleton recipe at the original index
+                        setLocalRecipes(prevRecipes => {
+                            const newRecipes = [...prevRecipes];
+                            console.log(`🔄 [REROLL INDEX ${originalIndex}] BEFORE replacement - Recipe at index ${originalIndex}:`, {
+                                id: prevRecipes[originalIndex]?.id,
+                                name: prevRecipes[originalIndex]?.recipe_name
+                            });
+                            newRecipes[originalIndex] = recipe;
+                            console.log(`🔄 [REROLL INDEX ${originalIndex}] AFTER replacement - Recipe at index ${originalIndex}:`, {
+                                id: recipe.id,
+                                name: recipe.recipe_name
+                            });
+                            return newRecipes;
+                        });
                          
                          setLocalIngredients(prev => {
                              const newIngredients = [...prev, ...ingredientsWithRecipeId];
@@ -833,6 +868,7 @@ export default function QuantitativeNutrition(props: {
                          return newState;
                      });
                      console.error(`Error generating recipe for original index ${originalIndex}:`, error);
+                     console.error(`❌ [REROLL INDEX ${originalIndex}] SKELETON RECIPE NOT REPLACED DUE TO ERROR - This will be filtered out during commit!`);
                      throw error;
                  }
             };
