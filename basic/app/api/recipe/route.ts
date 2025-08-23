@@ -10,7 +10,7 @@ const openai = new OpenAI({
 });
 
 // Vector store ID for cookbook collection - "Cooking Knowledge Base" from OpenAI platform
-const COOKBOOK_VECTOR_STORE_ID = process.env.COOKBOOK_VECTOR_STORE_ID || 'vs_68a9b54c1670819194d8ce90e254c42f';
+const COOKBOOK_VECTOR_STORE_ID = process.env.COOKBOOK_VECTOR_STORE_ID || 'vs_68a9b54c167081919d48ec89e254c42f';
 
 // Types for vector store search response
 interface VectorStoreSearchContent {
@@ -158,35 +158,75 @@ const recipeSchema = {
 // Function to generate an optimal search query using babbage-002
 async function generateSearchQuery(userDetails: User, goalDetails: Goal, cuisines: string[], calorieTarget: number, proteinTarget: number, fatTarget: number): Promise<string> {
     try {
-        const queryPrompt = `Create a comprehensive search query for cookbook content with rich keywords and phrases. Do NOT ask for a specific recipe. Instead, include many relevant cooking terms, techniques, ingredients, and flavor profiles.
-
-Focus on these elements:
-- Diet type: ${goalDetails.diet}
-- Cuisine styles: ${cuisines.join(', ')}
-- Nutritional targets: ${calorieTarget} calories, ${proteinTarget}g protein, ${fatTarget}g fat
-- Cooking methods and techniques
-- Ingredient categories and flavor combinations
-- Healthy cooking approaches
-
-Generate a query with multiple keywords, cooking techniques, spice names, ingredient categories, and culinary terms that would help find relevant recipes and cooking knowledge:`;
+        const cuisineList = cuisines.join(', ');
+        const queryPrompt = `Generate search phrases for ${goalDetails.diet} ${cuisineList} cuisine cooking. Include traditional cooking techniques, signature spices, authentic ingredients, cooking equipment, preparation methods, and flavor combinations specific to this cuisine:`;
 
         const completion = await openai.completions.create({
             model: "babbage-002",
             prompt: queryPrompt,
-            max_tokens: 150,
+            max_tokens: 120,
             temperature: 0.8
         });
 
         const generatedQuery = completion.choices[0].text?.trim();
         
-        // Ensure we have a comprehensive fallback with lots of keywords
-        const fallbackQuery = `${goalDetails.diet} ${cuisines.join(' ')} cuisine cooking techniques healthy recipes ingredients spices herbs vegetables proteins grains nutritional balanced meals cooking methods sautéing roasting grilling steaming braising flavor combinations seasoning marinades ${calorieTarget} calories high protein healthy fats`;
+        // Create cuisine-specific phrase combinations
+        const cuisineSpecificPhrases = cuisines.flatMap(cuisine => {
+            const phrases = [];
+            phrases.push(`${cuisine} cooking techniques`);
+            phrases.push(`traditional ${cuisine} ingredients`);
+            phrases.push(`authentic ${cuisine} flavors`);
+            phrases.push(`${cuisine} spice combinations`);
+            phrases.push(`${cuisine} preparation methods`);
+            return phrases;
+        });
         
-        return generatedQuery || fallbackQuery;
+        // Add diet-specific phrases
+        const dietPhrases = [
+            `${goalDetails.diet} cooking methods`,
+            `${goalDetails.diet} ingredient substitutions`,
+            `healthy ${goalDetails.diet} recipes`,
+            `nutritious ${goalDetails.diet} meals`
+        ];
+        
+        // Add nutritional context phrases
+        const nutritionalPhrases = [];
+        if (proteinTarget > 25) {
+            nutritionalPhrases.push('high protein cooking', 'protein-rich ingredients', 'lean protein preparation');
+        }
+        if (calorieTarget < 600) {
+            nutritionalPhrases.push('light cooking methods', 'low calorie techniques', 'healthy portion control');
+        }
+        if (fatTarget > 20) {
+            nutritionalPhrases.push('healthy fat sources', 'good fat cooking', 'omega-3 rich ingredients');
+        }
+        
+        // Combine all phrases
+        const allPhrases = [
+            ...cuisineSpecificPhrases,
+            ...dietPhrases,
+            ...nutritionalPhrases,
+            'balanced nutrition cooking',
+            'fresh ingredient preparation',
+            'healthy cooking techniques',
+            'nutritious meal planning',
+            'flavor enhancement methods',
+            'cooking equipment usage'
+        ];
+        
+        const fallbackQuery = allPhrases.join(' ');
+        
+        // Combine generated query with structured phrases
+        if (generatedQuery && generatedQuery.length > 15) {
+            return `${generatedQuery} ${fallbackQuery}`;
+        }
+        
+        return fallbackQuery;
     } catch (error) {
         console.error('Error generating search query:', error);
-        // Enhanced fallback query with more keywords
-        return `${goalDetails.diet} ${cuisines.join(' ')} cuisine cooking techniques healthy recipes ingredients spices herbs vegetables proteins grains nutritional balanced meals cooking methods sautéing roasting grilling steaming braising flavor combinations seasoning marinades ${calorieTarget} calories high protein healthy fats`;
+        // Enhanced fallback with cuisine-specific phrases
+        const cuisineList = cuisines.join(', ');
+        return `${goalDetails.diet} ${cuisineList} cooking techniques traditional ingredients authentic flavors spice combinations preparation methods healthy cooking nutritious recipes balanced nutrition fresh ingredients cooking equipment flavor enhancement methods`;
     }
 }
 
