@@ -155,79 +155,55 @@ const recipeSchema = {
     }
 };
 
-// Function to generate an optimal search query using babbage-002
-async function generateSearchQuery(userDetails: User, goalDetails: Goal, cuisines: string[], calorieTarget: number, proteinTarget: number, fatTarget: number): Promise<string> {
-    try {
-        const cuisineList = cuisines.join(', ');
-        const queryPrompt = `Generate search phrases for ${goalDetails.diet} ${cuisineList} cuisine cooking. Include traditional cooking techniques, signature spices, authentic ingredients, cooking equipment, preparation methods, and flavor combinations specific to this cuisine:`;
-
-        const completion = await openai.completions.create({
-            model: "babbage-002",
-            prompt: queryPrompt,
-            max_tokens: 120,
-            temperature: 0.8
-        });
-
-        const generatedQuery = completion.choices[0].text?.trim();
-        
-        // Create cuisine-specific phrase combinations
-        const cuisineSpecificPhrases = cuisines.flatMap(cuisine => {
-            const phrases = [];
-            phrases.push(`${cuisine} cooking techniques`);
-            phrases.push(`traditional ${cuisine} ingredients`);
-            phrases.push(`authentic ${cuisine} flavors`);
-            phrases.push(`${cuisine} spice combinations`);
-            phrases.push(`${cuisine} preparation methods`);
-            return phrases;
-        });
-        
-        // Add diet-specific phrases
-        const dietPhrases = [
-            `${goalDetails.diet} cooking methods`,
-            `${goalDetails.diet} ingredient substitutions`,
-            `healthy ${goalDetails.diet} recipes`,
-            `nutritious ${goalDetails.diet} meals`
-        ];
-        
-        // Add nutritional context phrases
-        const nutritionalPhrases = [];
-        if (proteinTarget > 25) {
-            nutritionalPhrases.push('high protein cooking', 'protein-rich ingredients', 'lean protein preparation');
-        }
-        if (calorieTarget < 600) {
-            nutritionalPhrases.push('light cooking methods', 'low calorie techniques', 'healthy portion control');
-        }
-        if (fatTarget > 20) {
-            nutritionalPhrases.push('healthy fat sources', 'good fat cooking', 'omega-3 rich ingredients');
-        }
-        
-        // Combine all phrases
-        const allPhrases = [
-            ...cuisineSpecificPhrases,
-            ...dietPhrases,
-            ...nutritionalPhrases,
-            'balanced nutrition cooking',
-            'fresh ingredient preparation',
-            'healthy cooking techniques',
-            'nutritious meal planning',
-            'flavor enhancement methods',
-            'cooking equipment usage'
-        ];
-        
-        const fallbackQuery = allPhrases.join(' ');
-        
-        // Combine generated query with structured phrases
-        if (generatedQuery && generatedQuery.length > 15) {
-            return `${generatedQuery} ${fallbackQuery}`;
-        }
-        
-        return fallbackQuery;
-    } catch (error) {
-        console.error('Error generating search query:', error);
-        // Enhanced fallback with cuisine-specific phrases
-        const cuisineList = cuisines.join(', ');
-        return `${goalDetails.diet} ${cuisineList} cooking techniques traditional ingredients authentic flavors spice combinations preparation methods healthy cooking nutritious recipes balanced nutrition fresh ingredients cooking equipment flavor enhancement methods`;
+// Function to generate an optimal search query programmatically
+function generateSearchQuery(userDetails: User, goalDetails: Goal, cuisines: string[], calorieTarget: number, proteinTarget: number, fatTarget: number): string {
+    console.log('Generating search query for cookbook RAG...');
+    
+    // Create cuisine-specific phrase combinations
+    const cuisineSpecificPhrases = cuisines.flatMap(cuisine => {
+        const phrases = [];
+        phrases.push(`${cuisine} cooking techniques`);
+        phrases.push(`traditional ${cuisine} ingredients`);
+        phrases.push(`authentic ${cuisine} flavors`);
+        phrases.push(`${cuisine} spice combinations`);
+        phrases.push(`${cuisine} preparation methods`);
+        return phrases;
+    });
+    
+    // Add diet-specific phrases
+    const dietPhrases = [
+        `${goalDetails.diet} cooking methods`,
+        `${goalDetails.diet} ingredient substitutions`,
+        `healthy ${goalDetails.diet} recipes`,
+        `nutritious ${goalDetails.diet} meals`
+    ];
+    
+    // Add nutritional context phrases
+    const nutritionalPhrases = [];
+    if (proteinTarget > 25) {
+        nutritionalPhrases.push('high protein cooking', 'protein-rich ingredients', 'lean protein preparation');
     }
+    if (calorieTarget < 600) {
+        nutritionalPhrases.push('light cooking methods', 'low calorie techniques', 'healthy portion control');
+    }
+    if (fatTarget > 20) {
+        nutritionalPhrases.push('healthy fat sources', 'good fat cooking', 'omega-3 rich ingredients');
+    }
+    
+    // Combine all phrases
+    const allPhrases = [
+        ...cuisineSpecificPhrases,
+        ...dietPhrases,
+        ...nutritionalPhrases,
+        'balanced nutrition cooking',
+        'fresh ingredient preparation',
+        'healthy cooking techniques',
+        'nutritious meal planning',
+        'flavor enhancement methods',
+        'cooking equipment usage'
+    ];
+    
+    return allPhrases.join(' ');
 }
 
 // Function to search the cookbook vector store using direct API
@@ -297,9 +273,8 @@ export async function POST(req: Request) {
             cookDate
         } = await req.json();
         
-        // RAG: Generate optimal search query using babbage-002
-        console.log('Generating search query for cookbook RAG...');
-        const searchQuery = await generateSearchQuery(userDetails, goalDetails, cuisines, calorieTarget, proteinTarget, fatTarget);
+        // RAG: Generate optimal search query programmatically
+        const searchQuery = generateSearchQuery(userDetails, goalDetails, cuisines, calorieTarget, proteinTarget, fatTarget);
         console.log('Generated search query:', searchQuery);
 
         // RAG: Search cookbook vector store
