@@ -387,6 +387,39 @@ export async function POST(req: Request) {
             throw recipeError;
         }
 
+        // Insert ingredients
+        const { data: ingredientsResult, error: ingredientsError } = await supabase
+            .from('Ingredients')
+            .insert(ingredientsData)
+            .select();
+
+        if (ingredientsError) {
+            console.error('Error creating ingredients:', { error: ingredientsError });
+            throw ingredientsError;
+        }
+
+        // Insert preprocessing steps
+        const { data: preprocessingResult, error: preprocessingError } = await supabase
+            .from('Preprocessing')
+            .insert(preprocessingData)
+            .select();
+
+        if (preprocessingError) {
+            console.error('Error creating preprocessing:', { error: preprocessingError });
+            throw preprocessingError;
+        }
+
+        // Insert recipe steps
+        const { data: stepsResult, error: stepsError } = await supabase
+            .from('Steps')
+            .insert(stepsData)
+            .select();
+
+        if (stepsError) {
+            console.error('Error creating steps:', { error: stepsError });
+            throw stepsError;
+        }
+
         return NextResponse.json({
             message: 'Recipe and all related data created successfully',
             recipe: {
@@ -401,9 +434,9 @@ export async function POST(req: Request) {
                 created_at: recipeData.created_at,
                 updated_at: recipeData.updated_at,
             },
-            ingredients: ingredientsData,
-            preprocessing: preprocessingData,
-            steps: stepsData
+            ingredients: ingredientsResult,
+            preprocessing: preprocessingResult,
+            steps: stepsResult
         });
     } catch (error) {
         console.error('Error in recipe creation process:', { error });
