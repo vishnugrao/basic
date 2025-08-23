@@ -12,6 +12,26 @@ const openai = new OpenAI({
 // Vector store ID for cookbook collection - "Cooking Knowledge Base" from OpenAI platform
 const COOKBOOK_VECTOR_STORE_ID = process.env.COOKBOOK_VECTOR_STORE_ID || 'vs_68a9b54c1670819194d8ce90e254c42f';
 
+// Types for vector store search response
+interface VectorStoreSearchContent {
+    type: string;
+    text: string;
+}
+
+interface VectorStoreSearchResult {
+    file_id: string;
+    filename: string;
+    score: number;
+    attributes?: Record<string, unknown>;
+    content: VectorStoreSearchContent[];
+}
+
+interface VectorStoreSearchResponse {
+    object: string;
+    search_query: string;
+    data: VectorStoreSearchResult[];
+}
+
 // Define the JSON schema for Structured Outputs
 const recipeSchema = {
     type: "json_schema" as const,
@@ -138,78 +158,85 @@ const recipeSchema = {
 // Function to generate an optimal search query using babbage-002
 async function generateSearchQuery(userDetails: User, goalDetails: Goal, cuisines: string[], calorieTarget: number, proteinTarget: number, fatTarget: number): Promise<string> {
     try {
-        const queryPrompt = `Create a search query for cookbook content. Focus on: ${goalDetails.diet} ${cuisines.join(' ')} cuisine recipes, cooking techniques, spices, ingredients. Target: ${calorieTarget} calories, ${proteinTarget}g protein, ${fatTarget}g fat.
+        const queryPrompt = `Create a comprehensive search query for cookbook content with rich keywords and phrases. Do NOT ask for a specific recipe. Instead, include many relevant cooking terms, techniques, ingredients, and flavor profiles.
 
-Query:`;
+Focus on these elements:
+- Diet type: ${goalDetails.diet}
+- Cuisine styles: ${cuisines.join(', ')}
+- Nutritional targets: ${calorieTarget} calories, ${proteinTarget}g protein, ${fatTarget}g fat
+- Cooking methods and techniques
+- Ingredient categories and flavor combinations
+- Healthy cooking approaches
+
+Generate a query with multiple keywords, cooking techniques, spice names, ingredient categories, and culinary terms that would help find relevant recipes and cooking knowledge:`;
 
         const completion = await openai.completions.create({
             model: "babbage-002",
             prompt: queryPrompt,
-            max_tokens: 100,
-            temperature: 0.7
+            max_tokens: 150,
+            temperature: 0.8
         });
 
-        return completion.choices[0].text?.trim() || `${goalDetails.diet} ${cuisines.join(' ')} recipes cooking techniques`;
+        const generatedQuery = completion.choices[0].text?.trim();
+        
+        // Ensure we have a comprehensive fallback with lots of keywords
+        const fallbackQuery = `${goalDetails.diet} ${cuisines.join(' ')} cuisine cooking techniques healthy recipes ingredients spices herbs vegetables proteins grains nutritional balanced meals cooking methods sautéing roasting grilling steaming braising flavor combinations seasoning marinades ${calorieTarget} calories high protein healthy fats`;
+        
+        return generatedQuery || fallbackQuery;
     } catch (error) {
         console.error('Error generating search query:', error);
-        // Fallback query
-        return `${goalDetails.diet} ${cuisines.join(' ')} recipes cooking techniques nutritional ${calorieTarget} calories`;
+        // Enhanced fallback query with more keywords
+        return `${goalDetails.diet} ${cuisines.join(' ')} cuisine cooking techniques healthy recipes ingredients spices herbs vegetables proteins grains nutritional balanced meals cooking methods sautéing roasting grilling steaming braising flavor combinations seasoning marinades ${calorieTarget} calories high protein healthy fats`;
     }
 }
 
-// Function to search the cookbook vector store using Assistants API
+// Function to search the cookbook vector store using direct API
 async function searchCookbookVectorStore(query: string): Promise<string> {
     try {
-        // Create a temporary assistant with file search capability
-        const assistant = await openai.beta.assistants.create({
-            name: "Cookbook Search Assistant",
-            instructions: "You are a cookbook search assistant. Extract relevant cooking information, techniques, and recipes from the uploaded cookbook files.",
-            model: "gpt-4o-mini",
-            tools: [{ type: "file_search" }],
-            tool_resources: {
-                file_search: {
-                    vector_store_ids: [COOKBOOK_VECTOR_STORE_ID]
-                }
-            }
+        console.log(`Searching vector store ${COOKBOOK_VECTOR_STORE_ID} with query: ${query}`);
+        
+        const response = await fetch(`https://api.openai.com/v1/vector_stores/${COOKBOOK_VECTOR_STORE_ID}/search`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                query: query,
+                max_num_results: 10,
+                rewrite_query: false
+            })
         });
 
-        // Create a thread
-        const thread = await openai.beta.threads.create();
-
-        // Add the search query as a message
-        await openai.beta.threads.messages.create(thread.id, {
-            role: "user",
-            content: query
-        });
-
-        // Run the assistant
-        const run = await openai.beta.threads.runs.create(thread.id, {
-            assistant_id: assistant.id
-        });
-
-        // Wait for completion
-        let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
-        while (runStatus.status === "queued" || runStatus.status === "in_progress") {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error(`Vector store search failed with status ${response.status}:`, errorData);
+            return '';
         }
 
-        if (runStatus.status === "completed") {
-            // Get the messages
-            const messages = await openai.beta.threads.messages.list(thread.id);
-            const assistantMessage = messages.data.find(msg => msg.role === "assistant");
-            
-            // Clean up - delete the temporary assistant
-            await openai.beta.assistants.del(assistant.id);
-            
-            if (assistantMessage && assistantMessage.content[0].type === "text") {
-                return assistantMessage.content[0].text.value;
-            }
+        const searchResults: VectorStoreSearchResponse = await response.json();
+        console.log(`Vector store search returned ${searchResults.data?.length || 0} results`);
+
+        if (!searchResults.data || searchResults.data.length === 0) {
+            console.log('No search results found in vector store');
+            return '';
         }
 
-        // Clean up - delete the temporary assistant
-        await openai.beta.assistants.del(assistant.id);
-        return '';
+        // Combine all search results into a single context string
+        const combinedContent = searchResults.data
+            .map((result: VectorStoreSearchResult) => {
+                const content = result.content
+                    ?.map((contentItem: VectorStoreSearchContent) => contentItem.text || '')
+                    .join(' ') || '';
+                
+                return `[Score: ${result.score?.toFixed(2) || 'N/A'}] ${content}`;
+            })
+            .filter((content: string) => content.length > 0)
+            .join('\n\n---\n\n');
+
+        console.log(`Combined content length: ${combinedContent.length} characters`);
+        return combinedContent;
+
     } catch (error) {
         console.error('Error searching vector store:', error);
         return ''; // Return empty string if search fails
