@@ -1,6 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { isLocalhost } from "@/utils/environment";
 
 export async function updateSession(request:NextRequest) {
     
@@ -10,12 +9,6 @@ export async function updateSession(request:NextRequest) {
 
     console.log('🔵 [MIDDLEWARE] Processing request:', request.nextUrl.pathname)
     console.log('🔵 [MIDDLEWARE] Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...')
-
-    // Bypass authentication checks on localhost for development
-    if (isLocalhost()) {
-        console.log('🟡 [MIDDLEWARE] Localhost detected - bypassing authentication checks')
-        return supabaseResponse
-    }
 
     // Check if this is an OAuth callback with a code parameter on any path
     const code = request.nextUrl.searchParams.get('code')
