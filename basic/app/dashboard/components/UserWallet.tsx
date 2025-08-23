@@ -137,7 +137,7 @@ export default function UserWallet({ wallet, onWalletRefresh }: UserWalletProps)
                             <div className="space-y-2">
                                 <p><strong>Cost breakdown:</strong></p>
                                 <ul className="list-disc list-inside space-y-1 ml-4">
-                                    <li>Recipe generation: ~$0.03 per request</li>
+                                    <li>Recipe generation: ~$0.05 per request</li>
                                 </ul>
                             </div>
                             <p>

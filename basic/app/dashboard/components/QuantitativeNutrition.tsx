@@ -696,8 +696,8 @@ export default function QuantitativeNutrition(props: {
             return;
         }
 
-        // Check balance before proceeding (selected recipes * 3 cents each)
-        const requiredCost = selectedRecipes.size * 0.03;
+        // Check balance before proceeding (selected recipes * 5 cents each)
+        const requiredCost = selectedRecipes.size * 0.05;
         if (!checkBalance(requiredCost)) {
             showInsufficientBalancePopup(requiredCost);
             return;
@@ -1062,7 +1062,7 @@ export default function QuantitativeNutrition(props: {
             await commitCollectedDataToDatabaseSmart(validFinalRecipes, finalIngredients, finalPreprocessing, finalSteps);
 
             // Update wallet after all recipes are completed
-            await onWalletUpdate(selectedIndices.length * 0.03, selectedIndices.length);
+            await onWalletUpdate(selectedIndices.length * 0.05, selectedIndices.length);
             
             setCustomCuisine("...");
             setSelectedRerollCuisines(mealPlan.cuisines);

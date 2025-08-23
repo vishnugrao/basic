@@ -5,6 +5,10 @@ import { createClient } from "@/utils/supabase/server";
 import { UUID } from "crypto";
 import { redirect } from "next/navigation";
 import { User } from "@/types/types";
+import { isLocalhost, LOCALHOST_BYPASS_EMAIL } from "@/utils/environment";
+
+// Mock UUID for localhost development
+const LOCALHOST_USER_ID = '00000000-0000-0000-0000-000000000001' as UUID;
 
 export async function insertRecipes(recipe: Recipe) {
     const supabase = await createClient()
@@ -76,6 +80,23 @@ export async function updateMultipleRecipes(user_id: UUID, recipes: Recipe[]) {
 }
 
 export async function getUserDetails(email: string) {
+    // Return mock data for localhost development
+    if (isLocalhost() && email === LOCALHOST_BYPASS_EMAIL) {
+        console.log('🟡 [getUserDetails] Returning mock user data for localhost')
+        return {
+            id: LOCALHOST_USER_ID,
+            name: 'Vishnu Rao (Dev)',
+            email: LOCALHOST_BYPASS_EMAIL,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            last_sign_in_at: new Date().toISOString(),
+            height: 175,
+            weight: 70,
+            gender: 'male',
+            age: 25
+        };
+    }
+
     const supabase = await createClient()
 
     const { data, error } = await supabase.from('Users').select('*').eq('email', email).single()
@@ -88,6 +109,19 @@ export async function getUserDetails(email: string) {
 }
 
 export async function getGoalDetails(user_id: UUID) {
+    // Return mock data for localhost development
+    if (isLocalhost() && user_id === LOCALHOST_USER_ID) {
+        console.log('🟡 [getGoalDetails] Returning mock goal data for localhost')
+        return {
+            id: '00000000-0000-0000-0000-000000000002' as UUID,
+            user_id: user_id,
+            goal: 'weight_loss',
+            diet: 'balanced',
+            lacto_ovo: 'no',
+            activity_level: 3
+        };
+    }
+
     const supabase = await createClient()
     const { data, error } = await supabase.from('Goals').select('*').eq('user_id', user_id).single()
 
@@ -99,6 +133,16 @@ export async function getGoalDetails(user_id: UUID) {
 }
 
 export async function getMealPlan(user_id: UUID) {
+    // Return mock data for localhost development
+    if (isLocalhost() && user_id === LOCALHOST_USER_ID) {
+        console.log('🟡 [getMealPlan] Returning mock meal plan data for localhost')
+        return {
+            id: '00000000-0000-0000-0000-000000000003' as UUID,
+            user_id: user_id,
+            cuisines: ['italian', 'mexican', 'asian']
+        };
+    }
+
     const supabase = await createClient()
     const { data, error } = await supabase.from('MealPlan').select('*').eq('user_id', user_id).single()
 
@@ -110,6 +154,16 @@ export async function getMealPlan(user_id: UUID) {
 }
 
 export async function getSearchSet(user_id: UUID) {
+    // Return mock data for localhost development
+    if (isLocalhost() && user_id === LOCALHOST_USER_ID) {
+        console.log('🟡 [getSearchSet] Returning mock search set data for localhost')
+        return {
+            id: '00000000-0000-0000-0000-000000000004' as UUID,
+            user_id: user_id,
+            searchSet: ['healthy', 'quick', 'vegetarian']
+        };
+    }
+
     const supabase = await createClient()
     const { data, error } = await supabase.from('SearchSet').select('*').eq('user_id', user_id).single()
 
@@ -121,6 +175,12 @@ export async function getSearchSet(user_id: UUID) {
 }
 
 export async function getRecipes(user_id: UUID) {
+    // Return mock data for localhost development
+    if (isLocalhost() && user_id === LOCALHOST_USER_ID) {
+        console.log('🟡 [getRecipes] Returning mock recipes data for localhost')
+        return [];
+    }
+
     const supabase = await createClient()
     const { data, error } = await supabase.from('Recipes').select('*').eq('user_id', user_id).order('cook_date', { ascending: true })
 
@@ -132,6 +192,12 @@ export async function getRecipes(user_id: UUID) {
 }
 
 export async function getIngredients(user_id: UUID) {
+    // Return mock data for localhost development
+    if (isLocalhost() && user_id === LOCALHOST_USER_ID) {
+        console.log('🟡 [getIngredients] Returning mock ingredients data for localhost')
+        return [];
+    }
+
     const supabase = await createClient()
     const { data, error } = await supabase.from('Ingredients').select('*').eq('user_id', user_id)
 
@@ -143,6 +209,12 @@ export async function getIngredients(user_id: UUID) {
 }
 
 export async function getPreprocessing(user_id: UUID) {
+    // Return mock data for localhost development
+    if (isLocalhost() && user_id === LOCALHOST_USER_ID) {
+        console.log('🟡 [getPreprocessing] Returning mock preprocessing data for localhost')
+        return [];
+    }
+
     const supabase = await createClient()
     const { data, error } = await supabase.from('Preprocessing').select('*').eq('user_id', user_id)
 
@@ -154,6 +226,12 @@ export async function getPreprocessing(user_id: UUID) {
 }
 
 export async function getSteps(user_id: UUID) {
+    // Return mock data for localhost development
+    if (isLocalhost() && user_id === LOCALHOST_USER_ID) {
+        console.log('🟡 [getSteps] Returning mock steps data for localhost')
+        return [];
+    }
+
     const supabase = await createClient()
     const { data, error } = await supabase.from('Steps').select('*').eq('user_id', user_id)
 
@@ -515,6 +593,20 @@ export async function deleteStepsForRecipes(user_id: UUID, recipe_ids: UUID[]) {
 }
 
 export async function getWallet(user_id: UUID) {
+    // Return mock data for localhost development
+    if (isLocalhost() && user_id === LOCALHOST_USER_ID) {
+        console.log('🟡 [getWallet] Returning mock wallet data for localhost')
+        return {
+            id: '00000000-0000-0000-0000-000000000005' as UUID,
+            user_id: user_id,
+            amount_paid: 100.0,
+            amount_used: 25.0,
+            requests_made: 10,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+    }
+
     try {
         console.log('🔵 [WALLET] Fetching wallet for user:', user_id)
         

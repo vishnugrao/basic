@@ -2,16 +2,27 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { getUserDetails, getGoalDetails, getMealPlan, getSearchSet, getRecipes, getIngredients, getPreprocessing, getSteps, getWallet} from "./actions";
 import DashboardClient from "./components/DashboardClient";
+import { isLocalhost, LOCALHOST_BYPASS_EMAIL } from "@/utils/environment";
 
 export default async function DashboardPage() {
-    const supabase = await createClient()
-    const { data, error } = await supabase.auth.getUser()
+    let userEmail: string;
 
-    if (error || !data?.user) {
-        redirect('/login')
+    // Use hardcoded email on localhost for development
+    if (isLocalhost()) {
+        console.log('🟡 [DASHBOARD] Localhost detected - using bypass email:', LOCALHOST_BYPASS_EMAIL)
+        userEmail = LOCALHOST_BYPASS_EMAIL;
+    } else {
+        const supabase = await createClient()
+        const { data, error } = await supabase.auth.getUser()
+
+        if (error || !data?.user) {
+            redirect('/login')
+        }
+
+        userEmail = data.user.email as string;
     }
 
-    const userDetails = await getUserDetails(data.user.email as string)
+    const userDetails = await getUserDetails(userEmail)
     const goalDetails = await getGoalDetails(userDetails.id)
     const mealPlan = await getMealPlan(userDetails.id)
     const searchSet = await getSearchSet(userDetails.id)

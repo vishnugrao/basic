@@ -17,6 +17,7 @@
     "openai": "^4.87.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "redis": "^5.8.2",
     "shadcn-ui": "^0.9.4",
     "stripe": "^18.3.0",
     "supabase": "^2.9.6",
